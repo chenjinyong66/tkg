@@ -10,6 +10,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'main',
+      redirect: '/login',
       component: BlankLayout,
       children: [
         {
@@ -56,6 +57,87 @@ const router = createRouter({
           component: () => import('../views/GraphView.vue'),
           meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
         }
+      ]
+    },
+    {
+      path: '/talent',
+      name: 'talent',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'TalentComp',
+          component: () => import('../views/talent/index.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        },
+        {
+          path: ':id',
+          component: () => import('@/views/talent/TalentLayout.vue'),
+          meta: { title: '人才详情' },
+          props: true,
+          redirect: to => `/talent/${to.params.id}/overview`,
+          children: [
+            {
+              path: 'overview',
+              name: 'TalentOverview',
+              component: () => import('@/views/talent/TalentOverview.vue'),
+              meta: { title: '人才概览', keepAlive: true }
+            },
+            {
+              path: 'files',
+              name: 'TalentFiles',
+              component: () => import('@/views/talent/TalentFiles.vue'),
+              meta: { title: '文件管理', keepAlive: true }
+            },
+            {
+              path: 'files/:fileId',
+              name: 'FileEditor',
+              component: () => import('@/views/talent/FileEditor.vue'),
+              meta: { title: '文件编辑' },
+              props: true
+            },
+            {
+              path: 'analysis',
+              name: 'TalentAnalysis',
+              component: () => import('@/views/talent/TalentAnalysis.vue'),
+              meta: { title: '能力分析', keepAlive: true }
+            },
+            {
+              path: 'knowledge',
+              name: 'TalentKnowledge',
+              component: () => import('@/views/talent/TalentKnowledge.vue'),
+              meta: { title: '知识图谱', keepAlive: true }
+            },
+            {
+              path: 'activities',
+              name: 'TalentActivities',
+              component: () => import('@/views/talent/TalentActivities.vue'),
+              meta: { title: '操作记录', keepAlive: true }
+            },
+            {
+              path: 'edit',
+              name: 'TalentEdit',
+              component: () => import('@/views/talent/TalentEdit.vue'),
+              meta: { title: '编辑人才' }
+            }
+          ]
+        },
+      ]
+    },
+
+    {
+      path: '/search',
+      name: 'search',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'TalentSearchComp',
+          component: () => import('../views/talentsearch/index.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        },
+        // 人才详情页已迁移到子路由结构
+        // 保留此注释作为历史记录
       ]
     },
     {
