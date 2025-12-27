@@ -1,57 +1,64 @@
 <template>
-  <div class="user-info-component">
+  <div class="user-info-component" :class="{ 'expanded': expanded }">
     <a-dropdown :trigger="['hover']" v-if="userStore.isLoggedIn">
-      <div class="user-info-dropdown" :data-align="showRole ? 'left' : 'center'">
+      <div class="user-info-dropdown">
         <div class="user-avatar">
           <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="avatar-image" />
           <CircleUser v-else />
-          <!-- <div class="user-role-badge" :class="userRoleClass"></div> -->
         </div>
-        <div v-if="showRole">{{ userStore.username }}</div>
+        <div class="user-details" v-if="expanded">
+          <div class="username">{{ userStore.username }}</div>
+          <div class="user-role">{{ userRoleText }}</div>
+        </div>
       </div>
       <template #overlay>
-        <a-menu>
+        <a-menu class="user-menu">
           <a-menu-item key="user-info" @click="openProfile">
-            <div class="user-info-display">
-              <div class="user-menu-username">{{ userStore.username }}</div>
-              <div class="user-menu-details">
-                <span class="user-menu-info">ID: {{ userStore.userIdLogin }}</span>
-                <span class="user-menu-role">{{ userRoleText }}</span>
+            <div class="user-menu-header">
+              <div class="user-menu-avatar">
+                <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
+                <CircleUser v-else />
+              </div>
+              <div class="user-menu-info">
+                <div class="user-menu-username">{{ userStore.username }}</div>
+                <div class="user-menu-id">ID: {{ userStore.userIdLogin }}</div>
               </div>
             </div>
           </a-menu-item>
           <a-menu-divider />
-          <a-menu-item key="docs" @click="openDocs">
-            <BookOpen size="16"/>
-            <span class="menu-text">文档中心</span>
+          <a-menu-item key="theme" @click="toggleTheme" class="menu-item">
+            <div class="menu-item-content">
+              <component :is="themeStore.isDark ? Sun : Moon" size="16" class="menu-icon" />
+              <span class="menu-text">{{ themeStore.isDark ? '浅色模式' : '深色模式' }}</span>
+            </div>
           </a-menu-item>
-          <a-menu-item key="theme" @click="toggleTheme">
-            <component :is="themeStore.isDark ? Sun : Moon" size="16"/>
-            <span class="menu-text">{{ themeStore.isDark ? '切换到浅色模式' : '切换到深色模式 (Beta)' }}</span>
+          <a-menu-divider v-if="userStore.isAdmin" />
+          <a-menu-item v-if="userStore.isAdmin" key="setting" @click="goToSetting" class="menu-item">
+            <div class="menu-item-content">
+              <Settings size="16" class="menu-icon" />
+              <span class="menu-text">系统设置</span>
+            </div>
           </a-menu-item>
-          <a-menu-divider v-if="userStore.isAdmin"/>
-          <a-menu-item v-if="userStore.isAdmin" key="setting" @click="goToSetting">
-            <Settings size="16"/>
-            <span class="menu-text">系统设置</span>
-          </a-menu-item>
-          <a-menu-item key="logout" @click="logout">
-            <LogOut size="16"/>
-            <span class="menu-text">退出登录</span>
+          <a-menu-item key="logout" @click="logout" class="menu-item logout-item">
+            <div class="menu-item-content">
+              <LogOut size="16" class="menu-icon" />
+              <span class="menu-text">退出登录</span>
+            </div>
           </a-menu-item>
         </a-menu>
       </template>
     </a-dropdown>
-    <a-button v-else-if="showButton" type="primary" @click="goToLogin">
+    <a-button v-else-if="showButton" type="primary" @click="goToLogin" class="login-button">
       登录
     </a-button>
 
     <!-- 个人资料弹窗 -->
     <a-modal
-      v-model:open="profileModalVisible"
-      title="个人资料"
-      :footer="null"
-      width="520px"
-      class="profile-modal"
+        v-model:open="profileModalVisible"
+        title="个人资料"
+        :footer="null"
+        width="520px"
+        class="profile-modal"
     >
       <div class="profile-content">
         <!-- 头像区域 -->
@@ -65,10 +72,10 @@
             </div>
             <div class="avatar-actions">
               <a-upload
-                :show-upload-list="false"
-                :before-upload="beforeUpload"
-                @change="handleAvatarChange"
-                accept="image/*"
+                  :show-upload-list="false"
+                  :before-upload="beforeUpload"
+                  @change="handleAvatarChange"
+                  accept="image/*"
               >
                 <a-button type="primary" size="small" :loading="avatarUploading">
                   <template #icon><Upload size="14"/></template>
@@ -89,10 +96,10 @@
             <div class="info-value" v-if="!profileEditing">{{ userStore.username || '未设置' }}</div>
             <div class="info-value" v-else>
               <a-input
-                v-model:value="editedProfile.username"
-                placeholder="请输入用户名（2-20个字符）"
-                :max-length="20"
-                style="width: 240px;"
+                  v-model:value="editedProfile.username"
+                  placeholder="请输入用户名（2-20个字符）"
+                  :max-length="20"
+                  style="width: 240px;"
               />
             </div>
           </div>
@@ -101,9 +108,9 @@
             <div class="info-value user-id" v-if="!profileEditing">{{ userStore.userIdLogin || '未设置' }}</div>
             <div class="info-value" v-else>
               <a-input
-                :value="userStore.userIdLogin || ''"
-                disabled
-                style="width: 240px;"
+                  :value="userStore.userIdLogin || ''"
+                  disabled
+                  style="width: 240px;"
               />
             </div>
           </div>
@@ -114,10 +121,10 @@
             </div>
             <div class="info-value" v-else>
               <a-input
-                v-model:value="editedProfile.phone_number"
-                placeholder="请输入手机号"
-                :max-length="11"
-                style="width: 200px;"
+                  v-model:value="editedProfile.phone_number"
+                  placeholder="请输入手机号"
+                  :max-length="11"
+                  style="width: 200px;"
               />
             </div>
           </div>
@@ -161,12 +168,8 @@
 import { computed, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
-//
-//
-//
-//
 import { message } from 'ant-design-vue';
-import { CircleUser, UserRoundCheck, BookOpen, Sun, Moon, User, LogOut, Upload, Settings } from 'lucide-vue-next';
+import { CircleUser, Sun, Moon, LogOut, Upload, Settings } from 'lucide-vue-next';
 import { useThemeStore } from '@/stores/theme'
 
 const router = useRouter();
@@ -186,7 +189,7 @@ const editedProfile = ref({
 });
 
 const props = defineProps({
-  showRole: {
+  expanded: {
     type: Boolean,
     default: false
   },
@@ -195,12 +198,6 @@ const props = defineProps({
     default: false
   }
 })
-
-// 用户名首字母（用于显示在头像中）
-const userInitial = computed(() => {
-  if (!userStore.username) return '?';
-  return userStore.username.charAt(0).toUpperCase();
-});
 
 // 用户角色显示文本
 const userRoleText = computed(() => {
@@ -216,15 +213,6 @@ const userRoleText = computed(() => {
   }
 });
 
-// 用户角色徽章样式类
-const userRoleClass = computed(() => {
-  return {
-    'superadmin': userStore.userRole === 'superadmin',
-    'admin': userStore.userRole === 'admin',
-    'user': userStore.userRole === 'user'
-  };
-});
-
 // 退出登录
 const logout = () => {
   userStore.logout();
@@ -237,10 +225,6 @@ const logout = () => {
 const goToLogin = () => {
   router.push('/login');
 };
-
-const openDocs = () => {
-  window.open('https://xerrors.github.io/Yuxi-Know/', '_blank', 'noopener,noreferrer')
-}
 
 const toggleTheme = () => {
   themeStore.toggleTheme()
@@ -380,119 +364,176 @@ const handleAvatarChange = async (info) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gray-800);
-  // margin-bottom: 16px;
+  width: 100%;
+  padding: 0 8px;
+
+  &.expanded {
+    justify-content: flex-start;
+  }
+
+  .login-button {
+    width: 100%;
+  }
 }
 
 .user-info-dropdown {
-  width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
 
-  &[data-align="center"] {
-    justify-content: center;
-  }
-
-  &[data-align="left"] {
-    justify-content: flex-start;
+  &:hover {
+    background-color: var(--main-10);
   }
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
-  font-size: 16px;
-  cursor: pointer;
-  position: relative;
+  background-color: var(--main-50);
+  color: var(--main-500);
+  flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 2px 8px var(--shadow-2);
-
-  &:hover {
-    opacity: 0.9;
-  }
+  border: 2px solid var(--gray-150);
 
   .avatar-image {
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    border-radius: 50%;
-    border: 2px solid var(--gray-150);
+    object-fit: cover;
   }
 }
 
-.user-role-badge {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  right: 0;
-  bottom: 0;
-  border: 2px solid var(--gray-0);
+.user-details {
+  flex: 1;
+  min-width: 0;
 
-  &.superadmin {
-    background-color: var(--color-warning-500);
+  .username {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gray-800);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  &.admin {
-    background-color: var(--color-info-500); /* 蓝色，管理员 */
-  }
-
-  &.user {
-    background-color: var(--color-success-500); /* 绿色，普通用户 */
+  .user-role {
+    font-size: 12px;
+    color: var(--gray-600);
+    line-height: 1.2;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
-.user-info-display {
-  line-height: 1.4;
+// 下拉菜单样式
+:deep(.user-menu) {
+  min-width: 220px;
+  padding: 12px 0;
+
+  .ant-dropdown-menu-item {
+    padding: 8px 16px;
+
+    &:hover {
+      background-color: var(--main-10);
+    }
+  }
+
+  .ant-dropdown-menu-item-selected {
+    background-color: var(--main-20);
+  }
 }
 
-.user-menu-username {
-  font-weight: 600;
-  color: var(--gray-900);
-  font-size: 14px;
-  display: block;
-  margin-bottom: 2px;
-}
-
-.user-menu-details {
+.user-menu-header {
   display: flex;
+  align-items: center;
   gap: 12px;
-  align-items: center;
-}
+  padding: 8px 0;
 
-.user-menu-info {
-  font-size: 12px;
-  color: var(--gray-600);
-}
+  .user-menu-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--main-50);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--main-500);
+    flex-shrink: 0;
+    overflow: hidden;
 
-.user-menu-role {
-  font-size: 12px;
-  color: var(--gray-500);
-}
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
 
-.login-icon {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-radius: 50%;
-  transition: background-color 0.2s, color 0.2s;
-  color: var(--gray-900);
+  .user-menu-info {
+    flex: 1;
+    min-width: 0;
 
-  &:hover {
-    background-color: var(--main-10);
-    color: var(--main-color);
+    .user-menu-username {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gray-800);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-menu-id {
+      font-size: 12px;
+      color: var(--gray-600);
+      line-height: 1.2;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 }
 
+.menu-item {
+  .menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .menu-icon {
+    color: var(--gray-700);
+    flex-shrink: 0;
+  }
+
+  .menu-text {
+    font-size: 14px;
+    color: var(--gray-800);
+  }
+
+  &.logout-item {
+    .menu-icon {
+      color: var(--color-error-500);
+    }
+
+    .menu-text {
+      color: var(--color-error-500);
+    }
+  }
+}
+
+// 个人资料弹窗样式
 .profile-modal {
   :deep(.ant-modal-header) {
     padding: 20px 24px;
@@ -501,7 +542,7 @@ const handleAvatarChange = async (info) => {
     .ant-modal-title {
       font-size: 18px;
       font-weight: 600;
-      color: var(--gray-900);
+      color: var(--gray-800);
     }
   }
 
@@ -544,7 +585,6 @@ const handleAvatarChange = async (info) => {
           border: 3px solid var(--gray-150);
           box-shadow: 0 2px 8px var(--shadow-2);
 
-          // 确保图标居中
           :deep(svg) {
             color: var(--gray-400);
           }
@@ -578,21 +618,18 @@ const handleAvatarChange = async (info) => {
       .info-label {
         width: 80px;
         font-weight: 500;
-        color: var(--gray-500);
+        color: var(--gray-600);
         flex-shrink: 0;
       }
 
       .info-value {
         flex: 1;
-        color: var(--gray-900);
+        color: var(--gray-800);
         font-size: 14px;
 
         &.user-id {
           font-family: 'Monaco', 'Consolas', monospace;
-          // background: var(--gray-50);
-          // padding: 4px 8px;
-          border-radius: 4px;
-          display: inline-block;
+          color: var(--gray-700);
         }
       }
 
@@ -609,27 +646,5 @@ const handleAvatarChange = async (info) => {
     padding-top: 16px;
     border-top: 1px solid var(--gray-150);
   }
-}
-
-:deep(.ant-dropdown-menu) {
-  padding: 8px 0;
-}
-
-:deep(.ant-dropdown-menu-title-content) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--gray-900);
-}
-
-:deep(.ant-dropdown-menu-item svg) {
-  margin-right: 4px;
-  color: var(--gray-900);
-  vertical-align: middle;
-}
-
-.menu-text {
-  line-height: 20px;
 }
 </style>
