@@ -7,8 +7,25 @@
 :root {
   --header-height: 45px;
   --min-width: 450px;
+  
+  /* 云南电网蓝色主题色 */
+  --yn-power-blue-50: #e6f7ff;
+  --yn-power-blue-100: #bae7ff;
+  --yn-power-blue-200: #91d5ff;
+  --yn-power-blue-300: #69c0ff;
+  --yn-power-blue-400: #40a9ff;
+  --yn-power-blue-500: #1890ff;  /* 云南电网主蓝色 */
+  --yn-power-blue-600: #096dd9;
+  --yn-power-blue-700: #0050b3;
+  --yn-power-blue-800: #003a8c;
+  --yn-power-blue-900: #002766;
 }
 
+body {
+  /* 使用云南电网蓝色主题作为主色调 */
+  --main-color: var(--yn-power-blue-500);
+  --main-bright: var(--yn-power-blue-600);
+}
 
 *,
 *::before,

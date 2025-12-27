@@ -1,10 +1,7 @@
 <script setup>
-import { ref, reactive, onMounted, useTemplateRef, computed, provide } from 'vue'
+import { ref, reactive, onMounted, useTemplateRef, computed, provide, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import {
-  GithubOutlined,
-} from '@ant-design/icons-vue'
-import { Bot, Waypoints, LibraryBig, BarChart3, CircleCheck } from 'lucide-vue-next';
+import { Bot, Waypoints, LibraryBig, BarChart3, CircleCheck, Search, Database, Users, ChevronDown, ChevronRight } from 'lucide-vue-next';
 import { onLongPress } from '@vueuse/core'
 
 import { useConfigStore } from '@/stores/config'
@@ -28,10 +25,6 @@ const layoutSettings = reactive({
   useTopBar: false, // 是否使用顶栏
 })
 
-// Add state for GitHub stars
-const githubStars = ref(0)
-const isLoadingStars = ref(false)
-
 // Add state for debug modal
 const showDebugModal = ref(false)
 const htmlRefHook = useTemplateRef('htmlRefHook')
@@ -46,17 +39,17 @@ const openSettingsModal = () => {
 
 // Setup long press for debug modal
 onLongPress(
-  htmlRefHook,
-  () => {
-    console.log('long press')
-    showDebugModal.value = true
-  },
-  {
-    delay: 1000, // 1秒长按
-    modifiers: {
-      prevent: true
+    htmlRefHook,
+    () => {
+      console.log('long press')
+      showDebugModal.value = true
+    },
+    {
+      delay: 1000, // 1秒长按
+      modifiers: {
+        prevent: true
+      }
     }
-  }
 )
 
 // Handle debug modal close
@@ -72,28 +65,12 @@ const getRemoteDatabase = () => {
   databaseStore.getDatabaseInfo(undefined, false) // Explicitly load query params for remote database
 }
 
-// Fetch GitHub stars count
-const fetchGithubStars = async () => {
-  try {
-    isLoadingStars.value = true
-    // 公共API，可以直接使用fetch
-    const response = await fetch('https://api.github.com/repos/xerrors/Yuxi-Know')
-    const data = await response.json()
-    githubStars.value = data.stargazers_count
-  } catch (error) {
-    console.error('获取GitHub stars失败:', error)
-  } finally {
-    isLoadingStars.value = false
-  }
-}
-
 onMounted(async () => {
   // 加载信息配置
   await infoStore.loadInfoConfig()
   // 加载其他配置
   getRemoteConfig()
   getRemoteDatabase()
-  fetchGithubStars() // Fetch GitHub stars on mount
   // 预加载任务数据，确保任务中心打开时有内容
   taskerStore.loadTasks()
 })
@@ -105,28 +82,80 @@ console.log(route)
 const activeTaskCount = computed(() => activeCountRef.value || 0)
 
 // 下面是导航菜单部分，添加智能体项
-const mainList = [{
+const mainList = [
+  {
     name: '智能体',
     path: '/agent',
     icon: Bot,
     activeIcon: Bot,
-  }, {
-    name: '图谱',
+  },
+  {
+    name: '人才图谱',
     path: '/graph',
     icon: Waypoints,
     activeIcon: Waypoints,
-  }, {
+  },
+  {
+    name: '人才库',
+    path: '/talent',
+    icon: Users,
+    activeIcon: Users,
+    /*children: [
+      {
+        name: '技能专家',
+        path: '/talent/skill',
+        icon: Users,
+      },
+      {
+        name: '技术专家',
+        path: '/talent/tech',
+        icon: Users,
+      }
+    ]*/
+  },
+  {
+    name: '人才搜索',
+    path: '/search',
+    icon: Search,
+    activeIcon: Search,
+  },
+  {
     name: '知识库',
     path: '/database',
-    icon: LibraryBig,
-    activeIcon: LibraryBig,
-  }, {
-    name: 'Dashboard',
+    icon: Database,
+    activeIcon: Database,
+  },
+  {
+    name: '数据看板',
     path: '/dashboard',
     icon: BarChart3,
     activeIcon: BarChart3,
   }
 ]
+
+// 展开/折叠状态
+const expandedMenus = ref({
+  '人才库': true // 默认展开人才库二级菜单
+})
+
+// 检查当前路由是否属于某个菜单项或其子项
+const isMenuItemActive = (item) => {
+  if (item.path) {
+    return route.path.startsWith(item.path)
+  }
+
+  // 检查子菜单
+  if (item.children) {
+    return item.children.some(child => route.path.startsWith(child.path))
+  }
+
+  return false
+}
+
+// 切换二级菜单展开状态
+const toggleSubMenu = (menuName) => {
+  expandedMenus.value[menuName] = !expandedMenus.value[menuName]
+}
 
 // Provide settings modal methods to child components
 provide('settingsModal', {
@@ -137,77 +166,94 @@ provide('settingsModal', {
 <template>
   <div class="app-layout" :class="{ 'use-top-bar': layoutSettings.useTopBar }">
     <div class="header" :class="{ 'top-bar': layoutSettings.useTopBar }">
-      <div class="logo circle">
+      <div class="logo">
         <router-link to="/">
           <img :src="infoStore.organization.avatar">
+          <span class="logo-text">{{ infoStore.organization.name }}</span>
         </router-link>
       </div>
       <div class="nav">
         <!-- 使用mainList渲染导航项 -->
-        <RouterLink
-          v-for="(item, index) in mainList"
-          :key="index"
-          :to="item.path"
-          v-show="!item.hidden"
-          class="nav-item"
-          active-class="active">
-          <a-tooltip placement="right">
-            <template #title>{{ item.name }}</template>
-            <component class="icon" :is="route.path.startsWith(item.path) ? item.activeIcon : item.icon" size="22"/>
-          </a-tooltip>
-        </RouterLink>
+        <template v-for="(item, index) in mainList" :key="index">
+          <!-- 有子菜单的项 -->
+          <div
+              v-if="item.children"
+              class="nav-item parent-item"
+              :class="{ active: isMenuItemActive(item) }"
+          >
+            <div class="nav-item-content" @click="toggleSubMenu(item.name)">
+              <component class="icon" :is="isMenuItemActive(item) ? item.activeIcon : item.icon" size="20"/>
+              <span class="nav-text">{{ item.name }}</span>
+              <component
+                  class="chevron"
+                  :is="expandedMenus[item.name] ? ChevronDown : ChevronRight"
+                  size="16"
+              />
+            </div>
+
+            <!-- 二级菜单 -->
+            <div v-show="expandedMenus[item.name]" class="sub-menu">
+              <RouterLink
+                  v-for="(child, childIndex) in item.children"
+                  :key="childIndex"
+                  :to="child.path"
+                  class="sub-menu-item"
+                  active-class="active"
+              >
+                <div class="sub-menu-content">
+                  <component class="sub-icon" :is="child.icon" size="16"/>
+                  <span class="sub-text">{{ child.name }}</span>
+                </div>
+              </RouterLink>
+            </div>
+          </div>
+
+          <!-- 没有子菜单的项 -->
+          <RouterLink
+              v-else
+              :to="item.path"
+              v-show="!item.hidden"
+              class="nav-item"
+              active-class="active"
+          >
+            <div class="nav-item-content">
+              <component class="icon" :is="isMenuItemActive(item) ? item.activeIcon : item.icon" size="20"/>
+              <span class="nav-text">{{ item.name }}</span>
+            </div>
+          </RouterLink>
+        </template>
+
+        <!-- 任务中心 -->
         <div
-          class="nav-item task-center"
-          :class="{ active: isDrawerOpen }"
-          @click="taskerStore.openDrawer()"
+            class="nav-item task-center"
+            :class="{ active: isDrawerOpen }"
+            @click="taskerStore.openDrawer()"
         >
-          <a-tooltip placement="right">
-            <template #title>任务中心</template>
+          <div class="nav-item-content">
             <a-badge
-              :count="activeTaskCount"
-              :overflow-count="99"
-              class="task-center-badge"
-              size="small"
+                :count="activeTaskCount"
+                :overflow-count="99"
+                class="task-center-badge"
+                size="small"
             >
-              <CircleCheck class="icon" size="22" />
+              <CircleCheck class="icon" size="20" />
             </a-badge>
-          </a-tooltip>
+            <span class="nav-text">任务中心</span>
+          </div>
         </div>
       </div>
       <div
-        ref="htmlRefHook"
-        class="fill debug-trigger"
+          ref="htmlRefHook"
+          class="fill debug-trigger"
       ></div>
 
-
-      <div class="github nav-item">
-        <a-tooltip placement="right">
-          <template #title>欢迎 Star</template>
-          <a href="https://github.com/xerrors/Yuxi-Know" target="_blank" class="github-link">
-            <GithubOutlined class="icon" />
-            <span v-if="githubStars > 0" class="github-stars">
-              <span class="star-count">{{ (githubStars / 1000).toFixed(1) }}k</span>
-            </span>
-          </a>
-        </a-tooltip>
+      <div class="bottom-section">
+        <!-- 用户信息组件 -->
+        <div class="nav-item user-info">
+          <UserInfoComponent :expanded="true" />
+        </div>
       </div>
-
-
-        <!-- <div class="nav-item api-docs">
-        <a-tooltip placement="right">
-          <template #title>接口文档 {{ apiDocsUrl }}</template>
-          <a :href="apiDocsUrl" target="_blank" class="github-link">
-            <ApiOutlined class="icon" style="color: var(--gray-1000);"/>
-          </a>
-        </a-tooltip>
-      </div> -->
-
-      <!-- 用户信息组件 -->
-      <div class="nav-item user-info">
-        <UserInfoComponent />
-      </div>
-
-      </div>
+    </div>
     <div class="header-mobile">
       <RouterLink to="/agent" class="nav-item" active-class="active">对话</RouterLink>
       <RouterLink to="/database" class="nav-item" active-class="active">知识</RouterLink>
@@ -221,28 +267,28 @@ provide('settingsModal', {
 
     <!-- Debug Modal -->
     <a-modal
-      v-model:open="showDebugModal"
-      title="调试面板"
-      width="90%"
-      :footer="null"
-      @cancel="handleDebugModalClose"
-      :maskClosable="true"
-      :destroyOnClose="true"
-      class="debug-modal"
+        v-model:open="showDebugModal"
+        title="调试面板"
+        width="90%"
+        :footer="null"
+        @cancel="handleDebugModalClose"
+        :maskClosable="true"
+        :destroyOnClose="true"
+        class="debug-modal"
     >
       <DebugComponent />
     </a-modal>
     <TaskCenterDrawer />
     <SettingsModal
-      v-model:visible="showSettingsModal"
-      @close="() => showSettingsModal = false"
+        v-model:visible="showSettingsModal"
+        @close="() => showSettingsModal = false"
     />
   </div>
 </template>
 
 <style lang="less" scoped>
 // Less 变量定义
-@header-width: 50px;
+@header-width: 200px; // 增加宽度确保菜单名完全显示
 
 .app-layout {
   display: flex;
@@ -274,6 +320,8 @@ div.header, #app-router-view {
 #app-router-view {
   flex: 1 1 auto;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0; // 防止内容溢出
 }
 
 .header {
@@ -286,154 +334,300 @@ div.header, #app-router-view {
   height: 100%;
   width: @header-width;
   border-right: 1px solid var(--gray-100);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+
+  .logo {
+    width: 100%;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--gray-100);
+    flex-shrink: 0;
+    background-color: var(--main-10);
+
+    a {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      width: 100%;
+      color: var(--gray-1000);
+    }
+
+    img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+
+    .logo-text {
+      display: inline;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--main-800);
+      margin-left: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: calc(@header-width - 80px);
+    }
+  }
 
   .nav {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    // height: 45px;
-    gap: 16px;
-  }
-
-  // 添加debug触发器样式
-  .debug-trigger {
-    position: relative;
-    height: 100%;
+    justify-content: flex-start;
+    align-items: flex-start;
+    flex: 1;
     width: 100%;
-    min-height: 20px;
-    flex-grow: 1;
-  }
+    padding: 16px 0;
+    gap: 2px;
+    overflow-y: auto;
+    overflow-x: hidden;
 
-  .logo {
-    width: 34px;
-    height: 34px;
-    margin: 12px 0 20px 0;
-
-    img {
-      width: 100%;
-      height: 100%;
-      border-radius: 4px;  // 50% for circle
+    /* 自定义滚动条样式 */
+    &::-webkit-scrollbar {
+      width: 4px;
     }
 
-    & > a {
-      text-decoration: none;
-      font-size: 24px;
-      font-weight: bold;
-      color: var(--gray-900);
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--gray-200);
+      border-radius: 2px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-300);
     }
   }
 
   .nav-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    padding: 4px;
-    border: 1px solid transparent;
-    border-radius: 12px;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 8px;
     background-color: transparent;
-    color: var(--gray-1000);
-    font-size: 20px;
-    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-    margin: 0;
+    color: var(--gray-800);
+    font-size: 14px;
+    transition: all 0.2s ease-in-out;
+    margin: 2px 8px;
     text-decoration: none;
     cursor: pointer;
     outline: none;
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: flex-start;
 
-    & > svg:focus {
-      outline: none;
-    }
-    & > svg:focus-visible {
-      outline: none;
-    }
-
-    &.active {
-      background-color: var(--gray-100);
-      font-weight: bold;
-      color: var(--main-color);
+    &:hover:not(.parent-item) {
+      background-color: var(--main-10);
+      color: var(--main-700);
     }
 
-    &.warning {
-      color: var(--color-error-500);
-    }
+    &.parent-item {
+      padding: 0;
+      margin: 2px 8px 0;
 
-    &:hover {
-      color: var(--main-color);
-    }
-
-    &.github {
-      padding: 10px 12px;
-      margin-bottom: 16px;
-      &:hover {
-        background-color: transparent;
-        border: 1px solid transparent;
+      &:hover .nav-item-content {
+        background-color: var(--main-10);
+        color: var(--main-700);
       }
 
-      .github-link {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: inherit;
-      }
-
-      .github-stars {
-        display: flex;
-        align-items: center;
-        font-size: 12px;
-        margin-top: 4px;
-
-        .star-icon {
-          color: var(--color-warning-500);
-          font-size: 12px;
-          margin-right: 2px;
-        }
-
-        .star-count {
+      &.active {
+        .nav-item-content {
+          background-color: var(--main-20);
+          color: var(--main-700);
           font-weight: 600;
+          position: relative;
+
+          &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 12px;
+            bottom: 12px;
+            width: 4px;
+            background-color: var(--main-500);
+            border-radius: 0 2px 2px 0;
+          }
         }
       }
     }
 
-    &.api-docs {
-      padding: 10px 12px;
+    &.active:not(.parent-item) {
+      background-color: var(--main-20);
+      color: var(--main-700);
+      font-weight: 600;
+      position: relative;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 12px;
+        bottom: 12px;
+        width: 4px;
+        background-color: var(--main-500);
+        border-radius: 0 2px 2px 0;
+      }
     }
-    &.docs { display: none; }
+
+    .nav-item-content {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 46px;
+      padding: 0 16px;
+      cursor: pointer;
+      border-radius: 8px;
+
+      .icon {
+        color: inherit;
+        flex-shrink: 0;
+        margin-right: 12px;
+      }
+
+      .nav-text {
+        display: inline;
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0; // 防止flex布局溢出
+      }
+
+      .chevron {
+        color: var(--gray-500);
+        flex-shrink: 0;
+        margin-left: 4px;
+        transition: transform 0.2s ease;
+      }
+    }
+
     &.task-center {
-      .task-center-badge {
-        width: 100%;
-        display: flex;
-        justify-content: center;
+      .nav-item-content {
+        padding: 0 16px;
       }
-    }
 
-    &.theme-toggle-nav {
-      .theme-toggle-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        cursor: pointer;
-        color: var(--gray-1000);
-        transition: color 0.2s ease-in-out;
-
-        &:hover {
-          color: var(--main-color);
+      .task-center-badge {
+        width: auto;
+        margin-right: 12px;
+        :deep(.ant-badge-count) {
+          font-size: 12px;
+          height: 18px;
+          min-width: 18px;
+          line-height: 18px;
+          box-shadow: none;
+          background-color: var(--color-error-500);
+          color: white;
         }
       }
-    }
-    &.user-info {
-      margin-bottom: 8px;
     }
   }
 
+  // 二级菜单样式
+  .sub-menu {
+    width: 100%;
+    padding-left: 24px;
+    margin-top: 2px;
+    margin-bottom: 8px;
+
+    .sub-menu-item {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: 36px;
+      padding: 0 12px;
+      border-radius: 6px;
+      background-color: transparent;
+      color: var(--gray-700);
+      font-size: 13px;
+      transition: all 0.2s ease-in-out;
+      margin: 1px 0;
+      text-decoration: none;
+      cursor: pointer;
+
+      &:hover {
+        background-color: var(--main-5);
+        color: var(--main-600);
+      }
+
+      &.active {
+        background-color: var(--main-10);
+        color: var(--main-700);
+        font-weight: 500;
+
+        .sub-text {
+          font-weight: 500;
+        }
+      }
+
+      .sub-menu-content {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+      }
+
+      .sub-icon {
+        color: inherit;
+        flex-shrink: 0;
+        margin-right: 8px;
+        opacity: 0.8;
+      }
+
+      .sub-text {
+        display: inline;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
+      }
+    }
+  }
+
+  // 添加debug触发器样式
+  .debug-trigger {
+    position: relative;
+    height: 20px;
+    width: 100%;
+    flex-shrink: 0;
+    min-height: 20px;
+  }
+
+  .bottom-section {
+    width: 100%;
+    padding: 20px 0;
+    border-top: 1px solid var(--gray-100);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+
+    .user-info {
+      margin-bottom: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      padding: 0 16px;
+    }
+  }
 }
 
 
-@media (max-width: 520px) {
+@media (max-width: 768px) {
   .app-layout {
     flex-direction: column-reverse;
 
@@ -456,6 +650,8 @@ div.header, #app-router-view {
     flex: 0 0 60px;
     border-right: none;
     height: 40px;
+    background-color: var(--main-0);
+    border-top: 1px solid var(--gray-100);
 
     .nav-item {
       text-decoration: none;
@@ -466,13 +662,10 @@ div.header, #app-router-view {
       transition: color 0.1s ease-in-out, font-size 0.1s ease-in-out;
 
       &.active {
-        color: var(--gray-10000);
+        color: var(--main-700);
         font-size: 1.1rem;
       }
     }
-  }
-  .app-layout .chat-box::webkit-scrollbar {
-    width: 0;
   }
 }
 
@@ -490,13 +683,15 @@ div.header, #app-router-view {
   background-color: var(--main-20);
   padding: 0 20px;
   gap: 24px;
+  overflow: visible;
 
   .logo {
     width: fit-content;
-    height: 28px;
+    height: auto;
+    border-bottom: none;
+    padding: 0;
     margin-right: 16px;
-    display: flex;
-    align-items: center;
+    background-color: transparent;
 
     a {
       display: flex;
@@ -511,88 +706,73 @@ div.header, #app-router-view {
       margin-right: 8px;
     }
 
+    .logo-text {
+      display: inline;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--main-800);
+      max-width: 200px;
+    }
   }
 
   .nav {
     flex-direction: row;
     height: auto;
-    gap: 20px;
+    padding: 0;
+    gap: 8px;
+    align-items: center;
   }
 
   .nav-item {
     flex-direction: row;
     width: auto;
-    padding: 4px 16px;
+    padding: 0 12px;
     margin: 0;
+    height: 36px;
 
-    .icon {
-      margin-right: 8px;
-      font-size: 15px; // 减小图标大小
-      border: none;
-      outline: none;
-
-      &:focus, &:active {
-        border: none;
-        outline: none;
-      }
+    .nav-item-content {
+      flex-direction: row;
+      justify-content: center;
     }
 
-    .text {
-      margin-top: 0;
+    .icon {
+      margin-right: 6px;
       font-size: 15px;
     }
 
-    &.github {
-      padding: 8px 12px;
+    .nav-text {
+      display: inline;
+      font-size: 14px;
+      font-weight: 500;
+      margin-left: 0;
+    }
 
-      .icon {
-        margin-right: 0;
-        font-size: 18px;
-      }
-
-      &.active {
-        color: var(--main-color);
-      }
-
-      a {
-        display: flex;
-        align-items: center;
-      }
-
-      .github-stars {
-        display: flex;
-        align-items: center;
-        margin-left: 6px;
-
-        .star-icon {
-          color: var(--color-warning-500);
-          font-size: 14px;
-          margin-right: 2px;
-        }
+    &.task-center {
+      .task-center-badge {
+        width: auto;
+        margin-right: 6px;
       }
     }
 
-    &.theme-toggle-nav {
-      padding: 8px 12px;
+    &.active::before {
+      display: none;
+    }
+  }
 
-      .theme-toggle-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--gray-1000);
-        transition: color 0.2s ease-in-out;
-        cursor: pointer;
+  // 顶栏模式下隐藏二级菜单
+  .sub-menu {
+    display: none;
+  }
 
-        &:hover {
-          color: var(--main-color);
-        }
-      }
+  .bottom-section {
+    flex-direction: row;
+    border-top: none;
+    padding: 0;
+    gap: 16px;
+    margin-left: auto;
 
-      &.active {
-        .theme-toggle-icon {
-          color: var(--main-color);
-        }
-      }
+    .user-info {
+      padding: 0;
     }
   }
 }

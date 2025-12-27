@@ -1,38 +1,38 @@
-
 /* color palette from <https://github.com/vuejs/theme> */
 /* https://material-foundation.github.io/material-theme-builder/ */
 :root {
-  --main-1000: #01151f;
-  --main-900:  #023944;
-  --main-800:  #035065;
-  --main-700:  #046a82;
-  --main-600:  #24839a;
-  --main-500:  #3996ae;
-  --main-400:  #5faec2;
-  --main-300:  #82c3d6;
-  --main-200:  #a3d8e8;
-  --main-100:  #c4eaf5;
-  --main-50:   #e1f6fb;
-  --main-40:   #eaf3f5;
-  --main-30:   #f7fbfd;
-  --main-20:   #f6f9fa;
-  --main-10:   #fafcfd;
-  --main-5:    #fcfefe;
-  --main-1:    #fefefe;
+  /* 云南电网蓝色主题调色板 - 深蓝色系 */
+  --main-1000: #00162a;
+  --main-900:  #00264d;
+  --main-800:  #003366;
+  --main-700:  #004080;
+  --main-600:  #005099;
+  --main-500:  #0066b3;
+  --main-400:  #007acc;
+  --main-300:  #3399e6;
+  --main-200:  #66b3f0;
+  --main-100:  #99ccff;
+  --main-50:   #cce6ff;
+  --main-40:   #d9ebff;
+  --main-30:   #e6f2ff;
+  --main-20:   #f0f7ff;
+  --main-10:   #f5faff;
+  --main-5:    #fafdff;
+  --main-1:    #fdfeff;
   --main-0:    #ffffff;
 
-
-  --gray-10000: #000000; /* 保持纯黑 */
-  --gray-2000:  #0c0d0d; /* 更精致的暗灰，用于极深背景 */
-  --gray-1000:  #151616; /* 深灰黑，适用于主文本 */
+  /* 灰色调色板保持不变 */
+  --gray-10000: #000000;
+  --gray-2000:  #0c0d0d;
+  --gray-1000:  #151616;
   --gray-900:   #1e1f1f;
-  --gray-800:   #323333; /* 标准深灰，适合背景 */
+  --gray-800:   #323333;
   --gray-700:   #4c4d4d;
-  --gray-600:   #697070; /* 调和中灰，适合次要文本 */
-  --gray-500:   #979999; /* 更柔和的中灰色 */
+  --gray-600:   #697070;
+  --gray-500:   #979999;
   --gray-400:   #bdbfbf;
-  --gray-300:   #d7d9d9; /* 修正了原300/200重复 */
-  --gray-200:   #e4e6e6; /* 稍微加深一点，便于分层 */
+  --gray-300:   #d7d9d9;
+  --gray-200:   #e4e6e6;
   --gray-150:   #eef0f0;
   --gray-100:   #eff2f2;
   --gray-50:    #f5f7f7;
@@ -40,55 +40,57 @@
   --gray-10:    #fbfcfc;
   --gray-0:     #ffffff;
 
-  /* Standard Color System - 标准5档色阶系统 */
-  --color-primary-50: #e1f6fb;   /* 主色调-最浅 */
-  --color-primary-100: #a3d8e8;  /* 主色调-浅 */
-  --color-primary-500: #3996ae;  /* 主色调-标准 */
-  --color-primary-700: #046a82;  /* 主色调-深 */
-  --color-primary-900: #023944;  /* 主色调-最深 */
+  /* Standard Color System - 更新为云南电网蓝色主题 */
+  --color-primary-50: #cce6ff;   /* 主色调-最浅 */
+  --color-primary-100: #99ccff;  /* 主色调-浅 */
+  --color-primary-500: #0066b3;  /* 主色调-标准（云南电网蓝） */
+  --color-primary-700: #004080;  /* 主色调-深 */
+  --color-primary-900: #00264d;  /* 主色调-最深 */
 
-  /* 保留原有的 main 变量 */
-  --main-color: #016179;
-  --main-bright: #0188a6;
+  /* 更新原有的 main 变量 */
+  --main-color: #0066b3;        /* 云南电网主蓝 */
+  --main-bright: #007acc;       /* 亮蓝色 */
 
-  --color-secondary-50: #f5f7f7;   /* 次要色-最浅 */
-  --color-secondary-100: #eff2f2;  /* 次要色-浅 */
-  --color-secondary-500: #4e616d;  /* 次要色-标准 */
-  --color-secondary-700: #3a4a56;  /* 次要色-深 */
-  --color-secondary-900: #2c3843;  /* 次要色-最深 */
+  /* 次要色系 - 调整为更搭配的蓝灰色 */
+  --color-secondary-50: #f0f5fa;
+  --color-secondary-100: #d9e4f0;
+  --color-secondary-500: #5a7b9a;
+  --color-secondary-700: #3a5a7a;
+  --color-secondary-900: #1e3a5a;
 
-  --color-success-50: #f6ffed;    /* 成功色-最浅 */
-  --color-success-100: #b7eb8f;   /* 成功色-浅 */
-  --color-success-500: #52c41a;   /* 成功色-标准 */
-  --color-success-700: #389e0d;   /* 成功色-深 */
-  --color-success-900: #135200;   /* 成功色-最深 */
+  /* 功能色系保持不变或微调 */
+  --color-success-50: #f6ffed;
+  --color-success-100: #b7eb8f;
+  --color-success-500: #52c41a;
+  --color-success-700: #389e0d;
+  --color-success-900: #135200;
 
-  --color-error-50: #fff2f0;      /* 错误色-最浅 */
-  --color-error-100: #ffccc7;     /* 错误色-浅 */
-  --color-error-500: #ff4d4f;     /* 错误色-标准 */
-  --color-error-700: #cf1322;     /* 错误色-深 */
-  --color-error-900: #820014;     /* 错误色-最深 */
+  --color-error-50: #fff2f0;
+  --color-error-100: #ffccc7;
+  --color-error-500: #ff4d4f;
+  --color-error-700: #cf1322;
+  --color-error-900: #820014;
 
-  --color-warning-50: #fffbe6;    /* 警告色-最浅 */
-  --color-warning-100: #ffe58f;   /* 警告色-浅 */
-  --color-warning-500: #faad14;   /* 警告色-标准 */
-  --color-warning-700: #d48806;   /* 警告色-深 */
-  --color-warning-900: #ad6800;   /* 警告色-最深 */
+  --color-warning-50: #fffbe6;
+  --color-warning-100: #ffe58f;
+  --color-warning-500: #faad14;
+  --color-warning-700: #d48806;
+  --color-warning-900: #ad6800;
 
-  --color-info-50: #e6f7ff;       /* 信息色-最浅 */
-  --color-info-100: #bae7ff;      /* 信息色-浅 */
-  --color-info-500: #1890ff;      /* 信息色-标准 */
-  --color-info-700: #096dd9;      /* 信息色-深 */
-  --color-info-900: #0050b3;      /* 信息色-最深 */
+  --color-info-50: #e6f7ff;
+  --color-info-100: #bae7ff;
+  --color-info-500: #1890ff;
+  --color-info-700: #096dd9;
+  --color-info-900: #0050b3;
 
-  --color-accent-50: #e6fffb;     /* 强调色-最浅 */
-  --color-accent-100: #87e8de;    /* 强调色-浅 */
-  --color-accent-500: #13c2c2;    /* 强调色-标准 */
-  --color-accent-700: #08979c;    /* 强调色-深 */
-  --color-accent-900: #006d75;    /* 强调色-最深 */
+  --color-accent-50: #e6fffb;
+  --color-accent-100: #87e8de;
+  --color-accent-500: #13c2c2;
+  --color-accent-700: #08979c;
+  --color-accent-900: #006d75;
 
-  /* Chart Palette - 图表调色板 */
-  --chart-palette-1: var(--main-500);
+  /* Chart Palette - 图表调色板，第一个颜色使用云南电网蓝 */
+  --chart-palette-1: var(--main-500); /* 0066b3 */
   --chart-palette-2: #5AD8A6;
   --chart-palette-3: #F6BD16;
   --chart-palette-4: #F27C7C;
@@ -99,8 +101,8 @@
   --chart-palette-9: #E885BA;
   --chart-palette-10: #8C8C8C;
 
-  --bg-sider: var(--main-5);
-  --color-text: var(--c-black);
+  --bg-sider: var(--main-5);     /* 侧边栏背景 */
+  --color-text: var(--gray-1000); /* 主文本颜色 */
 
   /* Shadow System - 阴影系统 */
   --shadow-0: rgba(0, 0, 0, 0.02);
@@ -109,7 +111,6 @@
   --shadow-3: rgba(0, 0, 0, 0.12);
   --shadow-4: rgba(0, 0, 0, 0.16);
   --shadow-5: rgba(0, 0, 0, 0.20);
-
 
   --min-width: 400px;
 
@@ -138,18 +139,18 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-200);
+  background: var(--main-300); /* 使用云南电网蓝色系 */
   border-radius: calc(var(--scrollbar-width) / 2);
   transition: background 0.2s ease;
   cursor: pointer;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-100);
+  background: var(--main-500); /* 悬停时使用主蓝色 */
 }
 
 /* Firefox 滚动条样式 */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--gray-200) transparent;
+  scrollbar-color: var(--main-300) transparent;
 }
