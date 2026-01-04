@@ -14,7 +14,6 @@ from src.knowledge.utils.kb_utils import (
     get_embedding_config,
     prepare_item_metadata,
     split_text_into_chunks,
-    split_text_into_qa_chunks,
 )
 from src.models.embed import OtherEmbedding
 from src.utils import hashstr, logger
@@ -222,16 +221,7 @@ class MilvusKB(KnowledgeBase):
 
     def _split_text_into_chunks(self, text: str, file_id: str, filename: str, params: dict) -> list[dict]:
         """将文本分割成块"""
-        # 检查是否使用QA分割模式
-        use_qa_split = params.get("use_qa_split", False)
-
-        if use_qa_split:
-            # 使用QA分割模式
-            qa_separator = params.get("qa_separator", "\n\n\n")
-            return split_text_into_qa_chunks(text, file_id, filename, qa_separator, params)
-        else:
-            # 使用传统分割模式
-            return split_text_into_chunks(text, file_id, filename, params)
+        return split_text_into_chunks(text, file_id, filename, params)
 
     async def add_content(self, db_id: str, items: list[str], params: dict | None = {}) -> list[dict]:
         """添加内容（文件/URL）"""
@@ -458,11 +448,26 @@ class MilvusKB(KnowledgeBase):
             query_embedding = embedding_function([query_text])
 
             search_params = {"metric_type": metric_type, "params": {"nprobe": 10}}
+
+            # 构建过滤表达式
+            expr = None
+            if file_name := kwargs.get("file_name"):
+                # 使用 like 支持模糊匹配
+                # 注意：需要转义双引号以防止注入
+                safe_file_name = file_name.replace('"', '\\"')
+                # 如果没有提供通配符，默认前后添加 %
+                if "%" not in safe_file_name:
+                    expr = f'source like "%{safe_file_name}%"'
+                else:
+                    expr = f'source like "{safe_file_name}"'
+                logger.debug(f"Using filter expression: {expr}")
+
             results = collection.search(
                 data=query_embedding,
                 anns_field="embedding",
                 param=search_params,
                 limit=recall_top_k,
+                expr=expr,
                 output_fields=["content", "source", "chunk_id", "file_id", "chunk_index"],
             )
 

@@ -55,7 +55,7 @@
                 <!-- 模型选择 -->
                 <div v-if="value.template_metadata.kind === 'llm'" class="model-selector">
                   <ModelSelectorComponent
-                    @select-model="handleModelChange"
+                    @select-model="(spec) => handleModelChange(key, spec)"
                     :model_spec="agentConfig[key] || ''"
                   />
                 </div>
@@ -152,6 +152,7 @@
                     <a-button
                       type="link"
                       size="small"
+                      class="clear-btn"
                       @click="clearSelection(key)"
                       v-if="getSelectedCount(key) > 0"
                     >
@@ -219,7 +220,7 @@
       <div class="sidebar-footer" v-if="!isEmptyConfig">
         <div class="form-actions">
           <a-button @click="saveConfig" class="save-btn" :class="{'changed': agentStore.hasConfigChanges}">
-            保存配置
+            保存配置并重新加载
           </a-button>
         </div>
       </div>
@@ -363,10 +364,10 @@ const getPlaceholder = (key, value) => {
   return `（默认: ${value.default}）`;
 };
 
-const handleModelChange = (spec) => {
+const handleModelChange = (key, spec) => {
   if (typeof spec !== 'string' || !spec) return;
   agentStore.updateAgentConfig({
-    model: spec
+    [key]: spec
   });
 };
 
@@ -808,12 +809,6 @@ const resetConfig = async () => {
         color: var(--gray-900);
         font-weight: 500;
       }
-
-      .clear-btn {
-        padding: 0;
-        height: auto;
-        font-size: 12px;
-      }
     }
 
     .select-tools-btn {
@@ -1119,6 +1114,19 @@ const resetConfig = async () => {
         }
       }
     }
+  }
+}
+
+
+.clear-btn {
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--main-700);
+
+  &:hover {
+    color: var(--main-800);
   }
 }
 

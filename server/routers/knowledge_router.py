@@ -95,7 +95,7 @@ async def create_database(
 
         def normalize_reranker_config(kb: str, params: dict) -> None:
             reranker_cfg = params.get("reranker_config")
-            if kb not in {"chroma", "milvus"}:
+            if kb not in {"milvus"}:
                 if kb == "lightrag" and reranker_cfg:
                     logger.warning("LightRAG does not support reranker, ignoring reranker_config")
                     params.pop("reranker_config", None)
@@ -394,10 +394,17 @@ async def get_document_content(db_id: str, doc_id: str, current_user: User = Dep
 
 @knowledge.delete("/databases/{db_id}/documents/{doc_id}")
 async def delete_document(db_id: str, doc_id: str, current_user: User = Depends(get_admin_user)):
-    """删除文档"""
+    """删除文档或文件夹"""
     logger.debug(f"DELETE document {doc_id} info in {db_id}")
     try:
         file_meta_info = await knowledge_base.get_file_basic_info(db_id, doc_id)
+
+        # Check if it is a folder
+        is_folder = file_meta_info.get("meta", {}).get("is_folder", False)
+        if is_folder:
+            await knowledge_base.delete_folder(db_id, doc_id)
+            return {"message": "文件夹删除成功"}
+
         file_name = file_meta_info.get("meta", {}).get("filename")
 
         # 尝试从MinIO删除文件，如果失败（例如旧知识库没有MinIO实例），则忽略
@@ -779,68 +786,6 @@ async def get_knowledge_base_query_params(db_id: str, current_user: User = Depen
                     },
                 ],
             }
-        elif kb_type == "chroma":
-            top_k_default = reranker_config.get("final_top_k", 10)
-            params_list = [
-                {
-                    "key": "top_k",
-                    "label": "TopK",
-                    "type": "number",
-                    "default": top_k_default,
-                    "min": 1,
-                    "max": 100,
-                    "description": "返回的最大结果数量",
-                },
-                {
-                    "key": "similarity_threshold",
-                    "label": "相似度阈值",
-                    "type": "number",
-                    "default": 0.0,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "step": 0.1,
-                    "description": "过滤相似度低于此值的结果",
-                },
-                {
-                    "key": "include_distances",
-                    "label": "显示相似度",
-                    "type": "boolean",
-                    "default": True,
-                    "description": "在结果中显示相似度分数",
-                },
-                {
-                    "key": "use_reranker",
-                    "label": "启用重排序",
-                    "type": "boolean",
-                    "default": reranker_enabled,
-                    "description": "是否使用精排模型对检索结果进行重排序",
-                },
-                {
-                    "key": "recall_top_k",
-                    "label": "召回数量",
-                    "type": "number",
-                    "default": reranker_config.get("recall_top_k", 50),
-                    "min": 10,
-                    "max": 200,
-                    "description": "启用重排序时向量检索的候选数量",
-                },
-            ]
-
-            if config.reranker_names:
-                params_list.append(
-                    {
-                        "key": "reranker_model",
-                        "label": "重排序模型",
-                        "type": "select",
-                        "default": reranker_config.get("model", ""),
-                        "options": [
-                            {"label": info.name, "value": model_id} for model_id, info in config.reranker_names.items()
-                        ],
-                        "description": "覆盖默认配置，选择用于本次查询的重排序模型",
-                    }
-                )
-
-            params = {"type": "chroma", "options": params_list}
         elif kb_type == "milvus":
             top_k_default = reranker_config.get("final_top_k", 10)
             params_list = [
@@ -1150,6 +1095,39 @@ async def get_sample_questions(db_id: str, current_user: User = Depends(get_admi
 # =============================================================================
 
 
+@knowledge.post("/databases/{db_id}/folders")
+async def create_folder(
+    db_id: str,
+    folder_name: str = Body(..., embed=True),
+    parent_id: str | None = Body(None, embed=True),
+    current_user: User = Depends(get_admin_user),
+):
+    """创建文件夹"""
+    try:
+        return await knowledge_base.create_folder(db_id, folder_name, parent_id)
+    except Exception as e:
+        logger.error(f"创建文件夹失败 {e}, {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@knowledge.put("/databases/{db_id}/documents/{doc_id}/move")
+async def move_document(
+    db_id: str,
+    doc_id: str,
+    new_parent_id: str | None = Body(..., embed=True),
+    current_user: User = Depends(get_admin_user),
+):
+    """移动文件或文件夹"""
+    logger.debug(f"Move document {doc_id} to {new_parent_id} in {db_id}")
+    try:
+        return await knowledge_base.move_file(db_id, doc_id, new_parent_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"移动文件失败 {e}, {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @knowledge.post("/files/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -1306,6 +1284,7 @@ async def get_all_embedding_models_status(current_user: User = Depends(get_admin
 async def generate_description(
     name: str = Body(..., description="知识库名称"),
     current_description: str = Body("", description="当前描述（可选，用于优化）"),
+    file_list: list[str] = Body([], description="文件列表"),
     current_user: User = Depends(get_admin_user),
 ):
     """使用 LLM 生成或优化知识库描述
@@ -1314,40 +1293,35 @@ async def generate_description(
     """
     from src.models import select_model
 
-    logger.debug(f"Generating description for knowledge base: {name}")
+    logger.debug(f"Generating description for knowledge base: {name}, files: {len(file_list)}")
+
+    # 构建文件列表文本
+    if file_list:
+        # 限制文件数量，避免 prompt 过长
+        display_files = file_list[:50]
+        files_str = "\n".join([f"- {f}" for f in display_files])
+        more_text = f"\n... (还有 {len(file_list) - 50} 个文件)" if len(file_list) > 50 else ""
+        current_description += f"\n\n知识库包含的文件:\n{files_str}{more_text}"
+
+    current_description = current_description or "暂无描述"
 
     # 构建提示词
-    if current_description.strip():
-        prompt = textwrap.dedent(f"""
-            请帮我优化以下知识库的描述。
+    prompt = textwrap.dedent(f"""
+        请帮我优化以下知识库的描述。
 
-            知识库名称: {name}
-            当前描述: {current_description}
+        知识库名称: {name}
+        当前描述: {current_description}
 
-            要求:
-            1. 这个描述将作为智能体工具的描述使用
-            2. 智能体会根据知识库的标题和描述来选择合适的工具
-            3. 所以描述需要清晰、具体，说明该知识库包含什么内容、适合解答什么类型的问题
-            4. 描述应该简洁有力，通常 2-4 句话即可
-            5. 不要使用 Markdown 格式
+        要求:
+        1. 这个描述将作为智能体工具的描述使用
+        2. 智能体会根据知识库的标题和描述来选择合适的工具
+        3. 所以描述需要清晰、具体，说明该知识库包含什么内容、适合解答什么类型的问题
+        4. 描述应该简洁有力，通常 2-4 句话即可
+        5. 不要使用 Markdown 格式
+        {"6. 请参考提供的文件列表来准确概括知识库内容" if file_list else ""}
 
-            请直接输出优化后的描述，不要有任何前缀说明。
-        """).strip()
-    else:
-        prompt = textwrap.dedent(f"""
-            请为以下知识库生成一个描述。
-
-            知识库名称: {name}
-
-            要求:
-            1. 这个描述将作为智能体工具的描述使用
-            2. 智能体会根据知识库的标题和描述来选择合适的工具
-            3. 所以描述需要清晰、具体，说明该知识库可能包含什么内容、适合解答什么类型的问题
-            4. 描述应该简洁有力，通常 2-4 句话即可
-            5. 不要使用 Markdown 格式
-
-            请直接输出描述，不要有任何前缀说明。
-        """).strip()
+        请直接输出优化后的描述，不要有任何前缀说明。
+    """).strip()
 
     try:
         model = select_model()
