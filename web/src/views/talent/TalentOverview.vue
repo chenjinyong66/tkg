@@ -626,6 +626,7 @@
       </div>
 
       <!-- 右侧：培训经历 -->
+      <!-- 培训经历 -->
       <div class="col" style="width: 33.3333%; padding: 10px;">
         <div class="card-container" style="background: #fff; border-radius: 8px; border: 1px solid #e6f0ff; padding: 20px; height: 100%;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -634,7 +635,7 @@
           </div>
           <div class="timeline-container" style="height: calc(100% - 40px);">
             <div class="timeline-item" v-for="(item, index) in trainingList" :key="index">
-              <div class="timeline-dot" :style="{background: item.status === '已通过' ? '#1890ff' : item.status === '进行中' ? '#52c41a' : '#faad14'}"></div>
+              <div class="timeline-dot" :style="{background: getTimelineDotColor(item.status)}"></div>
               <div class="timeline-content">
                 <!-- 第一行：时间 -->
                 <div style="font-size: 14px; color: #666; margin-bottom: 4px; line-height: 1.4;">
@@ -643,24 +644,8 @@
                 <!-- 第二行：培训名称和状态 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; line-height: 1.4; margin-bottom: 4px;">
                   <span style="color: #333; font-weight: 600; flex: 1; margin-right: 8px;">{{ item.name }}</span>
-                  <span :style="{
-              background: item.status === '已通过' ? '#f6ffed' :
-                         item.status === '进行中' ? '#e6f7ff' : '#fff7e6',
-              color: item.status === '已通过' ? '#1890ff' :
-                     item.status === '进行中' ? '#52c41a' : '#faad14',
-              border: item.status === '已通过' ? '1px solid #b7eb8f' :
-                      item.status === '进行中' ? '1px solid #91d5ff' : '1px solid #ffd591',
-              borderRadius: '4px',
-              padding: '2px 8px',
-              fontSize: '12px',
-              fontWeight: '600'
-            }">{{ item.status }}</span>
+                  <span :class="getStatusClass(item.status)">{{ item.status }}</span>
                 </div>
-                <!-- 第三行：培训时长（如有数据） -->
-<!--                <div style="font-size: 14px; line-height: 1.4;">
-                  <span style="color: #666; margin-right: 6px;">培训时长：</span>
-                  <span style="color: #333; font-weight: 600;">{{ item.duration || '16课时' }}</span>
-                </div>-->
               </div>
             </div>
           </div>
@@ -890,6 +875,24 @@ const trainingList = [
     duration: '20课时'
   }
 ]
+
+// 获取时间线圆点颜色
+const getTimelineDotColor = (status) => {
+  const colors = {
+    '已通过': '#0066b3',
+    '进行中': '#52c41a',
+    '未通过': '#faad14'
+  }
+  return colors[status] || '#999'
+}
+
+// 获取状态标签的样式类
+const getStatusClass = (status) => {
+  const baseClass = 'status-badge'
+  if (status === '已通过') return `${baseClass} status-passed`
+  if (status === '进行中') return `${baseClass} status-in-progress`
+  return `${baseClass} status-failed`
+}
 
 // 雷达图数据
 // 在<script setup>中修改雷达图数据
@@ -1849,4 +1852,33 @@ onMounted(() => {
 .score-module {
   min-width: 140px;
 }
+
+/* 状态标签样式 */
+.status-badge {
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 60px;
+  text-align: center;
+}
+
+.status-passed {
+  background: rgba(0, 102, 179, 0.08);
+  color: #0066b3;
+  border: 1px solid rgba(0, 102, 179, 0.2);
+}
+
+.status-in-progress {
+  background: rgba(82, 196, 26, 0.08);
+  color: #52c41a;
+  border: 1px solid rgba(82, 196, 26, 0.2);
+}
+
+.status-failed {
+  background: rgba(250, 173, 20, 0.08);
+  color: #faad14;
+  border: 1px solid rgba(250, 173, 20, 0.2);
+}
+
 </style>
