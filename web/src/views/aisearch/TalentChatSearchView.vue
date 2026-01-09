@@ -30,7 +30,7 @@ import TalentChatSearchComponent from '@/components/talent/TalentChatSearchCompo
 const props = defineProps({
   agentId: {
     type: String,
-    default: 'talent-search-agent' // 默认人才搜索智能体ID
+    default: 'ChatbotAgent' // 默认人才搜索智能体ID
   }
 });
 

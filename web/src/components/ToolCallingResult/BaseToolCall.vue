@@ -29,28 +29,28 @@
         <!-- Specific State Slots (Fallback) -->
         <template v-else>
           <slot
-            name="header-success"
-            v-if="toolCall.status === 'success' || toolCall.tool_call_result"
-            :tool-name="toolName"
-            :result-content="resultContent"
+              name="header-success"
+              v-if="toolCall.status === 'success' || toolCall.tool_call_result"
+              :tool-name="toolName"
+              :result-content="resultContent"
           >
             工具&nbsp;  <span class="tool-name">{{ toolName }}</span> &nbsp; 执行完成
           </slot>
 
           <slot
-            name="header-error"
-            v-else-if="toolCall.status === 'error'"
-            :tool-name="toolName"
-            :error-message="toolCall.error_message"
+              name="header-error"
+              v-else-if="toolCall.status === 'error'"
+              :tool-name="toolName"
+              :error-message="toolCall.error_message"
           >
             工具&nbsp;  <span class="tool-name">{{ toolName }}</span> &nbsp; 执行失败
             <span v-if="toolCall.error_message">（{{ toolCall.error_message }}）</span>
           </slot>
 
           <slot
-            name="header-running"
-            v-else
-            :tool-name="toolName"
+              name="header-running"
+              v-else
+              :tool-name="toolName"
           >
             正在调用工具: &nbsp; <span class="tool-name">{{ toolName }}</span>
           </slot>
@@ -302,7 +302,7 @@ const formatResultData = (data) => {
       }
 
       :deep(.description) {
-        color: var(--gray-600);
+        color: var(--gray-700);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

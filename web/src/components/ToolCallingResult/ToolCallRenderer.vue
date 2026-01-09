@@ -1,9 +1,9 @@
 <template>
   <!-- 知识图谱查询结果 -->
   <KnowledgeGraphTool
-    v-if="isKnowledgeGraphResult"
-    :tool-call="toolCall"
-    ref="graphToolCallRef"
+      v-if="isKnowledgeGraphResult"
+      :tool-call="toolCall"
+      ref="graphToolCallRef"
   />
 
   <!-- 网页搜索 -->
@@ -80,7 +80,7 @@ const parseData = (content) => {
 // 识别逻辑
 const isWebSearchResult = computed(() => {
   const name = toolName.value.toLowerCase();
-  return name.includes('search') || name.includes('tavily') || name.includes('web');
+  return name.includes('tavily_search');
 });
 
 const isTaskResult = computed(() => {

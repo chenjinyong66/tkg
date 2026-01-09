@@ -33,7 +33,7 @@ class AzureOpenAIEmbedderClient(EmbedderClient):
     def __init__(
         self,
         azure_client: AsyncAzureOpenAI | AsyncOpenAI,
-        model: str = 'text-embedding-3-small',
+        model: str = 'text-embedding-bge-m3',
     ):
         self.azure_client = azure_client
         self.model = model

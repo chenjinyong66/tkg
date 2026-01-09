@@ -1,1230 +1,1056 @@
 <template>
-  <div class="talent-analysis">
-    <!-- 页面标题 -->
-    <div class="analysis-header">
-      <h2>能力分析</h2>
-      <div class="header-actions">
-        <a-select
-            v-model:value="timeRange"
-            placeholder="选择时间范围"
-            style="width: 140px; margin-right: 8px;"
-            @change="handleTimeRangeChange"
-        >
-          <a-select-option value="month">最近一个月</a-select-option>
-          <a-select-option value="quarter">最近一个季度</a-select-option>
-          <a-select-option value="halfYear">最近半年</a-select-option>
-          <a-select-option value="year">最近一年</a-select-option>
-          <a-select-option value="all">全部时间</a-select-option>
-        </a-select>
-        <a-select
-            v-model:value="compareMode"
-            placeholder="对比模式"
-            style="width: 120px; margin-right: 8px;"
-            @change="handleCompareChange"
-        >
-          <a-select-option value="none">不对比</a-select-option>
-          <a-select-option value="self">自身对比</a-select-option>
-          <a-select-option value="team">团队对比</a-select-option>
-        </a-select>
-        <a-button type="primary" @click="handleExportReport">
-          <ExportOutlined />
-          导出分析报告
-        </a-button>
+  <div class="appointment-evaluation-page">
+    <!-- 顶部导航 -->
+    <div class="page-header">
+      <h1>技术专家聘期考核</h1>
+      <div class="header-info">
+        <span class="expert-name">专家：{{ expertInfo.name }}</span>
+        <span class="expert-id">工号：{{ expertInfo.employeeId }}</span>
+        <span class="expert-dept">部门：{{ expertInfo.department }}</span>
+        <span class="evaluation-type-tag">
+          <a-tag color="blue" size="large">聘期考核</a-tag>
+        </span>
       </div>
     </div>
 
-    <!-- 综合评分 -->
-    <a-card class="overall-rating-card" :loading="loading">
-      <div class="overall-content">
-        <div class="rating-main">
-          <div class="rating-score">
-            <div class="score-value">{{ overallRating.score.toFixed(1) }}</div>
-            <div class="score-label">综合评分</div>
-          </div>
-          <div class="rating-details">
-            <div class="detail-item">
-              <span class="detail-label">技术能力</span>
-              <span class="detail-value">{{ overallRating.technical.toFixed(1) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">管理能力</span>
-              <span class="detail-value">{{ overallRating.management.toFixed(1) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">沟通能力</span>
-              <span class="detail-value">{{ overallRating.communication.toFixed(1) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">创新能力</span>
-              <span class="detail-value">{{ overallRating.innovation.toFixed(1) }}</span>
-            </div>
-          </div>
+    <!-- 聘期信息 -->
+    <a-card class="appointment-info" title="聘期信息">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">聘期开始时间：</span>
+          <span class="info-value">{{ appointmentPeriod.startDate }}</span>
         </div>
-        <div class="rating-progress">
-          <a-progress
-              type="circle"
-              :percent="overallRating.score * 10"
-              :stroke-color="getRatingColor(overallRating.score)"
-              :width="120"
-          />
-          <div class="progress-label">综合评价</div>
+        <div class="info-item">
+          <span class="info-label">聘期结束时间：</span>
+          <span class="info-value">{{ appointmentPeriod.endDate }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">考核时间：</span>
+          <span class="info-value">{{ evaluationTime }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">当前岗位：</span>
+          <span class="info-value">{{ expertInfo.position }}</span>
         </div>
       </div>
     </a-card>
 
-    <!-- 能力雷达图 -->
-    <div class="radar-section">
-      <a-card class="radar-card">
-        <template #title>
-          <div class="card-title">
-            <span>能力雷达图</span>
-            <a-radio-group v-model:value="radarType" size="small">
-              <a-radio-button value="comprehensive">综合能力</a-radio-button>
-              <a-radio-button value="technical">技术能力</a-radio-button>
-              <a-radio-button value="soft">软技能</a-radio-button>
-            </a-radio-group>
-          </div>
-        </template>
-        <div class="radar-container">
-          <RadarChart
-              v-if="radarData.length > 0"
-              :data="radarData"
-              :dimensions="radarDimensions"
-              :height="350"
-              :compare-data="compareData"
-              :compare-dimensions="compareDimensions"
-          />
-          <div v-else class="no-data">
-            <Empty description="暂无能力评估数据" />
-            <a-button type="primary" @click="handleQuickAssess" style="margin-top: 16px;">
-              快速评估
-            </a-button>
-          </div>
+    <!-- 考核材料上传 -->
+    <a-card class="upload-section" title="考核材料上传">
+      <div class="upload-content">
+        <div class="upload-instructions">
+          <h3>上传说明</h3>
+          <ul>
+            <li>支持上传ZIP、RAR压缩包格式，最大支持500MB</li>
+            <li>压缩包内应包含各项考核指标的证明材料</li>
+            <li>文件结构建议按考核指标分类存放</li>
+            <li>支持批量上传多个压缩包</li>
+          </ul>
         </div>
-      </a-card>
-    </div>
 
-    <!-- 能力趋势图 -->
-    <div class="trend-section">
-      <a-card class="trend-card" title="能力发展趋势">
-        <div class="trend-controls">
-          <a-select
-              v-model:value="trendDimension"
-              placeholder="选择维度"
-              style="width: 150px;"
-              @change="handleTrendDimensionChange"
+        <div class="upload-area">
+          <a-upload-dragger
+              name="file"
+              :multiple="true"
+              :action="uploadUrl"
+              :before-upload="beforeUpload"
+              :file-list="uploadFiles"
+              @change="handleUploadChange"
+              accept=".zip,.rar,.7z"
           >
-            <a-select-option v-for="dim in trendDimensions" :key="dim.value" :value="dim.value">
-              {{ dim.label }}
-            </a-select-option>
-          </a-select>
-          <div class="trend-legend" v-if="trendData.length > 0">
-            <div class="legend-item">
-              <span class="legend-color" style="background: #1890ff;"></span>
-              <span class="legend-text">{{ talentInfo?.name || '当前人才' }}</span>
-            </div>
-            <div class="legend-item" v-if="compareMode === 'team'">
-              <span class="legend-color" style="background: #52c41a;"></span>
-              <span class="legend-text">团队平均</span>
-            </div>
-          </div>
+            <p class="ant-upload-drag-icon">
+              <InboxOutlined />
+            </p>
+            <p class="ant-upload-text">点击或将考核材料压缩包拖拽到此处上传</p>
+            <p class="ant-upload-hint">
+              支持ZIP、RAR格式压缩包，单个文件不超过500MB
+            </p>
+          </a-upload-dragger>
         </div>
-        <div class="trend-container">
-          <LineChart
-              v-if="trendData.length > 0"
-              :data="trendData"
-              :x-field="'time'"
-              :y-field="'score'"
-              :series-field="'type'"
-              :height="300"
-              :smooth="true"
-              :show-area="true"
-          />
-          <div v-else class="no-data">
-            <Empty description="暂无趋势数据" />
-          </div>
-        </div>
-      </a-card>
-    </div>
 
-    <!-- 详细能力分析 -->
-    <div class="detailed-analysis">
-      <a-card title="详细能力分析">
-        <template #extra>
-          <a-button @click="handleAddAssessment">
-            <PlusOutlined />
-            新增评估
-          </a-button>
-        </template>
-        <a-table
-            :data-source="detailedAnalysis"
-            :columns="analysisColumns"
-            :pagination="false"
-            size="middle"
-            :loading="loading"
-            row-key="id"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'dimension'">
-              <div class="dimension-cell">
-                <div class="dimension-name">{{ record.dimension }}</div>
-                <div class="dimension-desc">{{ record.description }}</div>
-              </div>
-            </template>
-
-            <template v-if="column.key === 'score'">
-              <div class="score-cell">
-                <a-progress
-                    :percent="record.score * 10"
-                    :stroke-color="getScoreColor(record.score)"
-                    :show-info="false"
-                    size="small"
-                    style="flex: 1;"
-                />
-                <span class="score-value">{{ record.score.toFixed(1) }}</span>
-              </div>
-            </template>
-
-            <template v-if="column.key === 'level'">
-              <a-tag :color="getLevelColor(record.level)" size="small">
-                {{ getLevelLabel(record.level) }}
-              </a-tag>
-            </template>
-
-            <template v-if="column.key === 'trend'">
-              <div class="trend-cell">
-                <span v-if="record.trend === 'up'" class="trend-up">
-                  <RiseOutlined style="color: #52c41a;" />
-                  <span class="trend-text">上升</span>
-                </span>
-                <span v-else-if="record.trend === 'down'" class="trend-down">
-                  <FallOutlined style="color: #ff4d4f;" />
-                  <span class="trend-text">下降</span>
-                </span>
-                <span v-else class="trend-stable">
-                  <MinusOutlined style="color: #faad14;" />
-                  <span class="trend-text">稳定</span>
-                </span>
-                <span class="trend-value" v-if="record.trendValue">
-                  {{ Math.abs(record.trendValue).toFixed(1) }}
-                </span>
-              </div>
-            </template>
-
-            <template v-if="column.key === 'actions'">
-              <div class="analysis-actions">
-                <a-tooltip title="查看详情">
-                  <a-button type="link" size="small" @click="viewAssessmentDetail(record)">
-                    <EyeOutlined />
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="编辑">
-                  <a-button type="link" size="small" @click="editAssessment(record)">
-                    <EditOutlined />
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="删除">
-                  <a-popconfirm
-                      title="确定要删除这个评估吗？"
-                      @confirm="deleteAssessment(record.id)"
-                  >
-                    <a-button type="link" size="small" danger>
-                      <DeleteOutlined />
-                    </a-button>
-                  </a-popconfirm>
-                </a-tooltip>
-              </div>
-            </template>
-          </template>
-        </a-table>
-      </a-card>
-    </div>
-
-    <!-- 改进建议 -->
-    <div class="suggestions-section">
-      <a-card class="suggestions-card" title="改进建议">
-        <div class="suggestions-content">
-          <a-list :data-source="suggestions" :loading="loading">
-            <template #renderItem="{ item, index }">
+        <div class="upload-history" v-if="uploadHistory.length > 0">
+          <h3>上传历史</h3>
+          <a-list :data-source="uploadHistory" :loading="loading">
+            <template #renderItem="{ item }">
               <a-list-item>
                 <a-list-item-meta>
                   <template #title>
-                    <div class="suggestion-title">
-                      <span class="suggestion-index">{{ index + 1 }}</span>
-                      <span class="suggestion-text">{{ item.content }}</span>
+                    <div class="file-item">
+                      <FileZipOutlined style="color: #1890ff; margin-right: 8px;" />
+                      <span class="file-name">{{ item.fileName }}</span>
+                      <a-tag size="small">{{ formatFileSize(item.fileSize) }}</a-tag>
                     </div>
                   </template>
                   <template #description>
-                    <div class="suggestion-details">
-                      <span class="dimension-tag">
-                        关联维度：{{ item.dimension }}
-                      </span>
-                      <span class="priority-tag">
-                        <a-tag :color="getPriorityColor(item.priority)" size="small">
-                          {{ getPriorityLabel(item.priority) }}
-                        </a-tag>
-                      </span>
-                      <span class="suggestion-time">
-                        {{ formatRelativeTime(item.createTime) }}
+                    <div class="file-info">
+                      <span>上传时间：{{ formatTime(item.uploadTime) }}</span>
+                      <span>解析状态：{{ getParseStatusText(item.parseStatus) }}</span>
+                      <span class="action-buttons">
+                        <a-button type="link" size="small" @click="reparseFile(item)">重新解析</a-button>
+                        <a-button type="link" size="small" danger @click="deleteFile(item)">删除</a-button>
                       </span>
                     </div>
                   </template>
                 </a-list-item-meta>
-                <div class="suggestion-actions">
-                  <a-button type="link" size="small" @click="markSuggestionDone(item)">
-                    <CheckCircleOutlined />
-                    标记完成
-                  </a-button>
-                </div>
               </a-list-item>
             </template>
           </a-list>
-          <div v-if="suggestions.length === 0 && !loading" class="no-suggestions">
-            <Empty description="暂无改进建议" />
+        </div>
+      </div>
+    </a-card>
+
+    <!-- 考核指标完成情况 -->
+    <a-card class="indicator-section" title="考核指标完成情况" :loading="parsing">
+      <div class="indicator-header">
+        <div class="indicator-filter">
+          <a-select v-model:value="indicatorFilter" placeholder="筛选指标类型" style="width: 200px;">
+            <a-select-option value="all">全部指标</a-select-option>
+            <a-select-option value="project">科技项目</a-select-option>
+            <a-select-option value="patent">专利成果</a-select-option>
+            <a-select-option value="paper">学术论文</a-select-option>
+            <a-select-option value="award">获奖情况</a-select-option>
+            <a-select-option value="standard">技术标准</a-select-option>
+            <a-select-option value="technicalSupport">技术支持</a-select-option>
+            <a-select-option value="talentTraining">人才培育</a-select-option>
+          </a-select>
+        </div>
+
+        <div class="completion-stats">
+          <div class="stat-card">
+            <div class="stat-title">完成率</div>
+            <div class="stat-value" :style="{ color: getCompletionRateColor(completionRate) }">
+              {{ completionRate }}%
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">总得分</div>
+            <div class="stat-value" style="color: #1890ff;">
+              {{ totalScore.toFixed(1) }}分
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">评价等级</div>
+            <div class="stat-value">
+              <a-tag :color="getCompletionLevelColor(completionLevel)" size="small">
+                {{ getCompletionLevelText(completionLevel) }}
+              </a-tag>
+            </div>
           </div>
         </div>
-      </a-card>
-    </div>
+      </div>
 
-    <!-- 快速评估模态框 -->
-    <a-modal
-        v-model:open="showQuickAssessModal"
-        title="快速能力评估"
-        @ok="handleQuickAssessSubmit"
-        @cancel="showQuickAssessModal = false"
-        width="800px"
-        :confirm-loading="assessing"
-    >
-      <div class="quick-assess-modal">
-        <p style="margin-bottom: 20px; color: #666;">
-          请为人才 <strong>{{ talentInfo?.name }}</strong> 的各个能力维度进行评分（1-10分）：
-        </p>
-
-        <div class="assess-items">
-          <div
-              v-for="dimension in assessmentDimensions"
-              :key="dimension.key"
-              class="assess-item"
-          >
-            <div class="assess-dimension">
-              <span class="dimension-name">{{ dimension.label }}</span>
-              <span class="dimension-desc">{{ dimension.description }}</span>
+      <div class="indicator-grid">
+        <div v-for="indicator in filteredIndicators" :key="indicator.id" class="indicator-card">
+          <div class="indicator-header">
+            <div class="indicator-title">
+              <h4>{{ indicator.name }}</h4>
+              <a-tag :color="getIndicatorTypeColor(indicator.type)" size="small">
+                {{ getIndicatorTypeText(indicator.type) }}
+              </a-tag>
             </div>
-            <div class="assess-rating">
-              <a-rate
-                  v-model:value="assessmentValues[dimension.key]"
-                  :count="10"
-                  allow-half
-                  @change="(value) => handleRatingChange(dimension.key, value)"
-                  character="★"
-                  style="font-size: 18px;"
-              />
-              <span class="rating-value">
-                {{ assessmentValues[dimension.key] || 0 }}/10
+            <div class="indicator-score">
+              <span class="current-score">{{ indicator.currentScore.toFixed(1) }}</span>
+              <span class="target-score">/{{ indicator.targetScore }}分</span>
+            </div>
+          </div>
+
+          <div class="indicator-progress">
+            <a-progress
+                :percent="getProgressPercent(indicator)"
+                :stroke-color="getProgressColor(indicator)"
+                :show-info="false"
+                size="small"
+            />
+            <div class="progress-label">
+              <span>完成度：{{ getProgressPercent(indicator) }}%</span>
+              <span v-if="indicator.status === 'completed'" class="status-completed">
+                <CheckCircleOutlined style="color: #52c41a; margin-right: 4px;" />
+                已完成
+              </span>
+              <span v-else-if="indicator.status === 'partial'" class="status-partial">
+                <ExclamationCircleOutlined style="color: #faad14; margin-right: 4px;" />
+                部分完成
+              </span>
+              <span v-else class="status-not-started">
+                <CloseCircleOutlined style="color: #ff4d4f; margin-right: 4px;" />
+                未完成
               </span>
             </div>
           </div>
-        </div>
 
-        <div class="assess-remarks">
-          <a-textarea
-              v-model:value="assessmentRemarks"
-              placeholder="请输入评估备注"
-              :rows="3"
-              style="margin-top: 20px;"
-          />
+          <div class="indicator-details">
+            <div class="detail-item">
+              <span class="detail-label">考核要求：</span>
+              <span class="detail-value">{{ indicator.requirement }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">证明材料：</span>
+              <span class="detail-value">{{ indicator.evidenceCount }}个文件</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">材料说明：</span>
+              <span class="detail-value">{{ indicator.evidenceDescription || '暂无说明' }}</span>
+            </div>
+          </div>
+
+          <div class="indicator-actions">
+            <a-button type="link" size="small" @click="viewEvidence(indicator)">
+              <EyeOutlined /> 查看材料
+            </a-button>
+            <a-button type="link" size="small" @click="editIndicator(indicator)">
+              <EditOutlined /> 编辑
+            </a-button>
+            <a-button type="link" size="small" @click="addEvidence(indicator)">
+              <PlusOutlined /> 补充材料
+            </a-button>
+          </div>
         </div>
       </div>
-    </a-modal>
+    </a-card>
 
-    <!-- 新增评估模态框 -->
-    <a-modal
-        v-model:open="showAssessmentModal"
-        :title="editMode ? '编辑评估' : '新增评估'"
-        @ok="handleAssessmentSubmit"
-        @cancel="handleAssessmentCancel"
-        width="600px"
-        :confirm-loading="submitting"
-    >
-      <a-form :model="assessmentForm" layout="vertical">
-        <a-form-item label="评估维度" required>
-          <a-select
-              v-model:value="assessmentForm.dimension"
-              placeholder="请选择评估维度"
-          >
-            <a-select-option v-for="dim in assessmentDimensions" :key="dim.key" :value="dim.key">
-              {{ dim.label }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-
-        <a-form-item label="评分" required>
-          <a-slider
-              v-model:value="assessmentForm.score"
-              :min="0"
-              :max="10"
-              :step="0.1"
-              :marks="{0: '0', 5: '5', 10: '10'}"
-          />
-          <div class="slider-value">
-            {{ assessmentForm.score.toFixed(1) }}/10
-          </div>
-        </a-form-item>
-
-        <a-form-item label="评估说明">
+    <!-- 考核总结报告 -->
+    <a-card class="report-section" title="聘期考核总结报告">
+      <div class="report-content">
+        <div class="report-summary">
+          <h3>聘期工作总结</h3>
           <a-textarea
-              v-model:value="assessmentForm.remarks"
-              placeholder="请输入评估说明"
-              :rows="3"
+              v-model:value="evaluationSummary"
+              placeholder="请输入聘期工作总结，包括主要工作内容、取得的成绩、存在的问题等"
+              :rows="6"
+              show-count
+              :maxlength="2000"
           />
-        </a-form-item>
+        </div>
 
-        <a-form-item label="评估人">
-          <a-input
-              v-model:value="assessmentForm.evaluator"
-              placeholder="请输入评估人"
+        <div class="report-suggestions">
+          <h3>改进建议</h3>
+          <a-textarea
+              v-model:value="improvementSuggestionsText"
+              placeholder="请输入改进建议"
+              :rows="4"
+              show-count
+              :maxlength="1000"
           />
-        </a-form-item>
-      </a-form>
+        </div>
+
+        <div class="expert-self-evaluation">
+          <h3>专家自评</h3>
+          <div class="self-evaluation-grid">
+            <div class="evaluation-item">
+              <span class="evaluation-label">工作态度：</span>
+              <a-rate v-model:value="selfEvaluation.attitude" allow-half />
+            </div>
+            <div class="evaluation-item">
+              <span class="evaluation-label">工作能力：</span>
+              <a-rate v-model:value="selfEvaluation.ability" allow-half />
+            </div>
+            <div class="evaluation-item">
+              <span class="evaluation-label">工作业绩：</span>
+              <a-rate v-model:value="selfEvaluation.performance" allow-half />
+            </div>
+            <div class="evaluation-item">
+              <span class="evaluation-label">团队合作：</span>
+              <a-rate v-model:value="selfEvaluation.teamwork" allow-half />
+            </div>
+          </div>
+        </div>
+
+        <div class="report-actions">
+          <a-button type="primary" @click="generateReport" :loading="generatingReport">
+            <FilePdfOutlined /> 生成PDF报告
+          </a-button>
+          <a-button @click="exportExcel">
+            <FileExcelOutlined /> 导出Excel
+          </a-button>
+          <a-button @click="printReport">
+            <PrinterOutlined /> 打印报告
+          </a-button>
+          <a-button type="primary" danger @click="submitEvaluation" :loading="submitting">
+            <SendOutlined /> 提交考核结果
+          </a-button>
+        </div>
+      </div>
+    </a-card>
+
+    <!-- 查看材料模态框 -->
+    <a-modal
+        v-model:open="showEvidenceModal"
+        :title="currentEvidence?.name || '查看材料'"
+        width="90%"
+        :footer="null"
+        @cancel="closeEvidenceModal"
+    >
+      <div class="evidence-viewer">
+        <div v-if="currentEvidence" class="evidence-content">
+          <div v-if="currentEvidence.type === 'pdf'" class="pdf-viewer">
+            <iframe
+                :src="currentEvidence.url"
+                width="100%"
+                height="600px"
+                frameborder="0"
+            ></iframe>
+          </div>
+          <div v-else-if="['jpg', 'jpeg', 'png', 'gif'].includes(currentEvidence.type)" class="image-viewer">
+            <img :src="currentEvidence.url" alt="证明材料" style="max-width: 100%;" />
+          </div>
+          <div v-else-if="['doc', 'docx', 'xls', 'xlsx'].includes(currentEvidence.type)" class="office-viewer">
+            <p class="office-tip">文档预览需要下载后查看</p>
+            <a-button type="primary" @click="downloadFile(currentEvidence)">
+              <DownloadOutlined /> 下载文档
+            </a-button>
+          </div>
+          <div v-else class="file-viewer">
+            <FileUnknownOutlined style="font-size: 48px; color: #999; margin-bottom: 16px;" />
+            <p>该文件格式不支持在线预览</p>
+            <a-button type="primary" @click="downloadFile(currentEvidence)">
+              <DownloadOutlined /> 下载文件
+            </a-button>
+          </div>
+        </div>
+        <div v-else class="no-evidence">
+          <a-empty description="暂无材料可预览" />
+        </div>
+      </div>
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { h } from 'vue'
 import {
-  ExportOutlined, RiseOutlined, FallOutlined,
-  MinusOutlined, CheckCircleOutlined, PlusOutlined,
-  EyeOutlined, EditOutlined, DeleteOutlined
+  InboxOutlined, FileZipOutlined, CheckCircleOutlined,
+  ExclamationCircleOutlined, CloseCircleOutlined, EyeOutlined,
+  EditOutlined, PlusOutlined, FilePdfOutlined, FileExcelOutlined,
+  PrinterOutlined, SendOutlined, DownloadOutlined, FileUnknownOutlined
 } from '@ant-design/icons-vue'
-import { Empty } from 'ant-design-vue'
-import RadarChart from '@/components/echarts/RadarChart.vue'
-import LineChart from '@/components/echarts/LineChart.vue'
-import { talentApi } from '@/apis/talent_api'
 import dayjs from 'dayjs'
 
-const route = useRoute()
-const talentId = route.params.id
-
-// 响应式数据
+// 状态
 const loading = ref(false)
-const timeRange = ref('quarter')
-const compareMode = ref('none')
-const radarType = ref('comprehensive')
-const trendDimension = ref('technical')
-const showQuickAssessModal = ref(false)
-const showAssessmentModal = ref(false)
-const editMode = ref(false)
-const assessing = ref(false)
+const parsing = ref(false)
+const generatingReport = ref(false)
 const submitting = ref(false)
+const showEvidenceModal = ref(false)
 
-// 数据
-const talentInfo = ref({})
-const overallRating = reactive({
-  score: 0,
-  technical: 0,
-  management: 0,
-  communication: 0,
-  innovation: 0,
-  execution: 0,
+// 专家信息
+const expertInfo = reactive({
+  name: '张三',
+  employeeId: 'YNGD2023001',
+  department: '电力科学研究院',
+  position: '高级工程师'
+})
+
+// 聘期信息
+const appointmentPeriod = reactive({
+  startDate: '2023-01-01',
+  endDate: '2025-12-31'
+})
+const evaluationTime = ref(dayjs().format('YYYY-MM-DD'))
+
+// 上传相关
+const uploadFiles = ref([])
+const uploadHistory = ref([])
+const uploadUrl = '/api/upload'
+
+// 考核指标
+const indicators = ref([])
+const indicatorFilter = ref('all')
+
+// 总结报告
+const evaluationSummary = ref('')
+const improvementSuggestionsText = ref('')
+const selfEvaluation = reactive({
+  attitude: 0,
+  ability: 0,
+  performance: 0,
   teamwork: 0
 })
-const radarData = ref([])
-const compareData = ref([])
-const trendData = ref([])
-const detailedAnalysis = ref([])
-const suggestions = ref([])
 
-// 评估表单
-const assessmentForm = reactive({
-  id: null,
-  dimension: 'technical',
-  score: 0,
-  remarks: '',
-  evaluator: ''
-})
-
-// 快速评估数据
-const assessmentValues = reactive({})
-const assessmentRemarks = ref('')
-const assessmentDimensions = [
-  { key: 'technical', label: '技术能力', description: '专业技术和解决问题的能力' },
-  { key: 'management', label: '管理能力', description: '项目管理和团队领导能力' },
-  { key: 'communication', label: '沟通能力', description: '表达和协作能力' },
-  { key: 'innovation', label: '创新能力', description: '创新思维和解决问题的新方法' },
-  { key: 'execution', label: '执行力', description: '任务执行和完成能力' },
-  { key: 'teamwork', label: '团队协作', description: '团队合作和协作精神' }
-]
-
-// 趋势维度选项
-const trendDimensions = [
-  { value: 'technical', label: '技术能力' },
-  { value: 'management', label: '管理能力' },
-  { value: 'communication', label: '沟通能力' },
-  { value: 'innovation', label: '创新能力' },
-  { value: 'execution', label: '执行力' },
-  { value: 'teamwork', label: '团队协作' }
-]
-
-// 表格列定义
-const analysisColumns = [
-  {
-    title: '能力维度',
-    key: 'dimension',
-    width: 200
-  },
-  {
-    title: '评分',
-    key: 'score',
-    width: 200
-  },
-  {
-    title: '等级',
-    key: 'level',
-    width: 100
-  },
-  {
-    title: '趋势',
-    key: 'trend',
-    width: 120
-  },
-  {
-    title: '评估时间',
-    key: 'evaluateTime',
-    width: 150
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 120
-  }
-]
+// 当前查看的证据
+const currentEvidence = ref(null)
 
 // 计算属性
-const radarDimensions = computed(() => {
-  switch (radarType.value) {
-    case 'technical':
-      return [
-        { key: 'specialty', label: '专业技术' },
-        { key: 'depth', label: '技术深度' },
-        { key: 'width', label: '技术广度' },
-        { key: 'problem_solving', label: '问题解决' },
-        { key: 'technical_innovation', label: '技术创新' },
-        { key: 'learning', label: '学习能力' }
-      ]
-    case 'soft':
-      return [
-        { key: 'communication', label: '沟通能力' },
-        { key: 'teamwork', label: '团队协作' },
-        { key: 'leadership', label: '领导力' },
-        { key: 'adaptability', label: '适应能力' },
-        { key: 'pressure', label: '抗压能力' },
-        { key: 'responsibility', label: '责任心' }
-      ]
-    default:
-      return [
-        { key: 'technical', label: '技术能力' },
-        { key: 'management', label: '管理能力' },
-        { key: 'communication', label: '沟通能力' },
-        { key: 'innovation', label: '创新能力' },
-        { key: 'execution', label: '执行力' },
-        { key: 'teamwork', label: '团队协作' }
-      ]
-  }
+const filteredIndicators = computed(() => {
+  if (indicatorFilter.value === 'all') return indicators.value
+  return indicators.value.filter(ind => ind.type === indicatorFilter.value)
 })
 
-const compareDimensions = computed(() => {
-  if (compareMode.value === 'team') {
-    return [{ key: 'team_avg', label: '团队平均' }]
-  }
-  return []
+const completionRate = computed(() => {
+  if (indicators.value.length === 0) return 0
+  const completed = indicators.value.filter(ind => ind.status === 'completed').length
+  return Math.round((completed / indicators.value.length) * 100)
+})
+
+const totalScore = computed(() => {
+  return indicators.value.reduce((sum, ind) => sum + ind.currentScore, 0)
+})
+
+const completionLevel = computed(() => {
+  const rate = completionRate.value
+  if (rate >= 90) return 'excellent'
+  if (rate >= 70) return 'good'
+  if (rate >= 60) return 'qualified'
+  return 'unqualified'
 })
 
 // 工具函数
-const formatRelativeTime = (dateTime) => {
-  if (!dateTime) return ''
-  return dayjs(dateTime).fromNow()
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-const getRatingColor = (score) => {
-  if (score >= 8) return '#52c41a'
-  if (score >= 6) return '#faad14'
+const formatTime = (time) => {
+  return dayjs(time).format('YYYY-MM-DD HH:mm')
+}
+
+const getParseStatusText = (status) => {
+  const statusMap = {
+    'pending': '等待解析',
+    'parsing': '解析中',
+    'success': '解析成功',
+    'failed': '解析失败'
+  }
+  return statusMap[status] || status
+}
+
+const getIndicatorTypeText = (type) => {
+  const typeMap = {
+    'project': '科技项目',
+    'patent': '专利成果',
+    'paper': '学术论文',
+    'award': '获奖情况',
+    'standard': '技术标准',
+    'technicalSupport': '技术支持',
+    'talentTraining': '人才培育'
+  }
+  return typeMap[type] || type
+}
+
+const getIndicatorTypeColor = (type) => {
+  const colorMap = {
+    'project': 'blue',
+    'patent': 'green',
+    'paper': 'purple',
+    'award': 'red',
+    'standard': 'orange',
+    'technicalSupport': 'cyan',
+    'talentTraining': 'gold'
+  }
+  return colorMap[type] || 'default'
+}
+
+const getProgressPercent = (indicator) => {
+  return Math.round((indicator.currentScore / indicator.targetScore) * 100)
+}
+
+const getProgressColor = (indicator) => {
+  const percent = getProgressPercent(indicator)
+  if (percent >= 100) return '#52c41a'
+  if (percent >= 60) return '#faad14'
   return '#ff4d4f'
 }
 
-const getScoreColor = (score) => {
-  return getRatingColor(score)
+const getCompletionLevelText = (level) => {
+  const levelMap = {
+    'excellent': '优秀',
+    'good': '良好',
+    'qualified': '合格',
+    'unqualified': '不合格'
+  }
+  return levelMap[level] || level
 }
 
-const getLevelColor = (level) => {
-  const colors = {
-    excellent: 'success',
-    good: 'processing',
-    average: 'warning',
-    poor: 'error'
+const getCompletionLevelColor = (level) => {
+  const colorMap = {
+    'excellent': 'success',
+    'good': 'processing',
+    'qualified': 'warning',
+    'unqualified': 'error'
   }
-  return colors[level] || 'default'
+  return colorMap[level] || 'default'
 }
 
-const getLevelLabel = (level) => {
-  const labels = {
-    excellent: '优秀',
-    good: '良好',
-    average: '一般',
-    poor: '待提升'
-  }
-  return labels[level] || level
-}
-
-const getPriorityColor = (priority) => {
-  const colors = {
-    high: 'error',
-    medium: 'warning',
-    low: 'processing'
-  }
-  return colors[priority] || 'default'
-}
-
-const getPriorityLabel = (priority) => {
-  const labels = {
-    high: '高优先级',
-    medium: '中优先级',
-    low: '低优先级'
-  }
-  return labels[priority] || priority
+const getCompletionRateColor = (rate) => {
+  if (rate >= 90) return '#52c41a'
+  if (rate >= 70) return '#faad14'
+  return '#ff4d4f'
 }
 
 // 业务函数
-const loadTalentInfo = async () => {
-  try {
-    const response = await talentApi.getTalentDetail(talentId)
-    talentInfo.value = response.talent || {}
-  } catch (error) {
-    console.error('加载人才信息失败:', error)
+const beforeUpload = (file) => {
+  const isArchive = file.type === 'application/zip' || file.type === 'application/x-rar-compressed' ||
+      file.name.endsWith('.zip') || file.name.endsWith('.rar')
+  if (!isArchive) {
+    message.error('只能上传ZIP或RAR格式的压缩包!')
+    return false
+  }
+
+  const isLt500M = file.size / 1024 / 1024 < 500
+  if (!isLt500M) {
+    message.error('压缩包大小不能超过500MB!')
+    return false
+  }
+
+  return true
+}
+
+const handleUploadChange = (info) => {
+  const { status } = info.file
+
+  if (status === 'uploading') {
+    parsing.value = true
+  }
+
+  if (status === 'done') {
+    parsing.value = false
+    message.success(`${info.file.name} 上传成功`)
+
+    // 添加到上传历史
+    uploadHistory.value.unshift({
+      id: Date.now(),
+      fileName: info.file.name,
+      fileSize: info.file.size,
+      uploadTime: new Date(),
+      parseStatus: 'success'
+    })
+
+    // 解析考核指标
+    parseIndicators()
+  } else if (status === 'error') {
+    parsing.value = false
+    message.error(`${info.file.name} 上传失败`)
   }
 }
 
-const loadAnalysisData = async () => {
-  loading.value = true
-  try {
-    // 加载综合评分
-    const ratingResponse = await talentApi.getTalentOverallRating(talentId)
-    Object.assign(overallRating, ratingResponse.rating || {})
-
-    // 加载雷达图数据
-    const radarResponse = await talentApi.getTalentRadar(talentId, {
-      type: radarType.value,
-      timeRange: timeRange.value
-    })
-    radarData.value = radarResponse.data || []
-
-    // 加载对比数据
-    if (compareMode.value === 'team') {
-      const compareResponse = await talentApi.getTeamComparison(talentId, timeRange.value)
-      compareData.value = compareResponse.data || []
-    } else {
-      compareData.value = []
+const parseIndicators = () => {
+  // 模拟解析考核指标
+  indicators.value = [
+    {
+      id: 1,
+      name: '完成国家科技重大专项',
+      type: 'project',
+      currentScore: 8.5,
+      targetScore: 10,
+      status: 'completed',
+      requirement: '作为负责人或主要完成人参与国家科技重大专项项目',
+      evidenceCount: 3,
+      evidenceDescription: '项目立项文件、结题报告、验收证书'
+    },
+    {
+      id: 2,
+      name: '获得发明专利授权',
+      type: 'patent',
+      currentScore: 6,
+      targetScore: 8,
+      status: 'partial',
+      requirement: '获得国内发明专利授权不少于3项',
+      evidenceCount: 2,
+      evidenceDescription: '专利授权证书、专利检索报告'
+    },
+    {
+      id: 3,
+      name: '发表SCI论文',
+      type: 'paper',
+      currentScore: 4,
+      targetScore: 6,
+      status: 'partial',
+      requirement: '以第一作者或通讯作者发表SCI论文2篇',
+      evidenceCount: 1,
+      evidenceDescription: '论文PDF、检索证明'
+    },
+    {
+      id: 4,
+      name: '制定技术标准',
+      type: 'standard',
+      currentScore: 3,
+      targetScore: 5,
+      status: 'partial',
+      requirement: '主持或主要参与制定行业及以上技术标准',
+      evidenceCount: 1,
+      evidenceDescription: '标准发布文件、编制说明'
+    },
+    {
+      id: 5,
+      name: '技术支持与创新',
+      type: 'technicalSupport',
+      currentScore: 7,
+      targetScore: 8,
+      status: 'completed',
+      requirement: '解决重大技术难题，提供创新性解决方案',
+      evidenceCount: 4,
+      evidenceDescription: '技术方案、实施报告、效益分析'
+    },
+    {
+      id: 6,
+      name: '人才培育',
+      type: 'talentTraining',
+      currentScore: 9,
+      targetScore: 10,
+      status: 'completed',
+      requirement: '培养青年技术人才，形成技术传承梯队',
+      evidenceCount: 5,
+      evidenceDescription: '培养计划、考核记录、成果报告'
     }
+  ]
+}
 
-    // 加载趋势数据
-    await loadTrendData()
+const viewEvidence = (item) => {
+  currentEvidence.value = {
+    name: item.name,
+    type: 'pdf',
+    url: '/sample.pdf'
+  }
+  showEvidenceModal.value = true
+}
 
-    // 加载详细分析数据
-    const analysisResponse = await talentApi.getTalentAnalysis(talentId, timeRange.value)
-    detailedAnalysis.value = analysisResponse.analysis || []
+const editIndicator = (indicator) => {
+  message.info(`编辑指标：${indicator.name}`)
+}
 
-    // 加载改进建议
-    const suggestionsResponse = await talentApi.getTalentSuggestions(talentId)
-    suggestions.value = suggestionsResponse.suggestions || []
+const addEvidence = (indicator) => {
+  message.info(`为 ${indicator.name} 添加补充材料`)
+}
+
+const reparseFile = (file) => {
+  message.info('重新解析文件')
+}
+
+const deleteFile = (file) => {
+  const index = uploadHistory.value.findIndex(f => f.id === file.id)
+  if (index !== -1) {
+    uploadHistory.value.splice(index, 1)
+    message.success('文件删除成功')
+  }
+}
+
+const closeEvidenceModal = () => {
+  showEvidenceModal.value = false
+  currentEvidence.value = null
+}
+
+const downloadFile = (file) => {
+  message.info('开始下载文件')
+}
+
+const generateReport = async () => {
+  generatingReport.value = true
+  try {
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    message.success('PDF报告生成成功')
   } catch (error) {
-    console.error('加载分析数据失败:', error)
-    message.error('加载分析数据失败')
+    message.error('报告生成失败')
   } finally {
-    loading.value = false
+    generatingReport.value = false
   }
 }
 
-const loadTrendData = async () => {
-  try {
-    const response = await talentApi.getTalentTrend(talentId, {
-      dimension: trendDimension.value,
-      timeRange: timeRange.value,
-      compareMode: compareMode.value
-    })
-    trendData.value = response.data || []
-  } catch (error) {
-    console.error('加载趋势数据失败:', error)
-    trendData.value = []
-  }
+const exportExcel = () => {
+  message.success('Excel导出成功')
 }
 
-const handleTimeRangeChange = () => {
-  loadAnalysisData()
+const printReport = () => {
+  window.print()
 }
 
-const handleCompareChange = () => {
-  loadAnalysisData()
-}
-
-const handleTrendDimensionChange = () => {
-  loadTrendData()
-}
-
-const handleExportReport = async () => {
-  try {
-    const response = await talentApi.exportTalentAnalysisReport(talentId, {
-      timeRange: timeRange.value,
-      includeCharts: true,
-      includeSuggestions: true
-    })
-
-    const blob = new Blob([response], { type: 'application/pdf' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${talentInfo.value?.name || '人才'}_能力分析报告.pdf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
-
-    message.success('报告导出成功')
-  } catch (error) {
-    console.error('导出报告失败:', error)
-    message.error('导出报告失败')
-  }
-}
-
-const handleQuickAssess = () => {
-  // 初始化评分值
-  assessmentDimensions.forEach(dim => {
-    assessmentValues[dim.key] = 0
-  })
-  assessmentRemarks.value = ''
-  showQuickAssessModal.value = true
-}
-
-const handleRatingChange = (dimension, value) => {
-  assessmentValues[dimension] = value
-}
-
-const handleQuickAssessSubmit = async () => {
-  // 检查是否至少有一个维度有评分
-  const hasRating = Object.values(assessmentValues).some(value => value > 0)
-  if (!hasRating) {
-    message.warning('请至少为一个维度评分')
-    return
-  }
-
-  assessing.value = true
-  try {
-    // 整理评分数据
-    const scores = []
-    let total = 0
-    let count = 0
-
-    assessmentDimensions.forEach(dim => {
-      const score = assessmentValues[dim.key] || 0
-      if (score > 0) {
-        total += score
-        count++
-        scores.push({
-          dimension: dim.key,
-          score: score,
-          label: dim.label
-        })
-      }
-    })
-
-    // 提交评估
-    await talentApi.submitTalentAssessment(talentId, {
-      scores: scores,
-      averageScore: total / count,
-      remarks: assessmentRemarks.value,
-      timeRange: timeRange.value,
-      type: 'quick'
-    })
-
-    message.success('评估提交成功')
-    showQuickAssessModal.value = false
-
-    // 重新加载数据
-    loadAnalysisData()
-  } catch (error) {
-    console.error('提交评估失败:', error)
-    message.error('提交评估失败')
-  } finally {
-    assessing.value = false
-  }
-}
-
-const handleAddAssessment = () => {
-  editMode.value = false
-  Object.assign(assessmentForm, {
-    id: null,
-    dimension: 'technical',
-    score: 0,
-    remarks: '',
-    evaluator: ''
-  })
-  showAssessmentModal.value = true
-}
-
-const editAssessment = (record) => {
-  editMode.value = true
-  Object.assign(assessmentForm, {
-    id: record.id,
-    dimension: record.dimensionKey || record.dimension,
-    score: record.score,
-    remarks: record.remarks || '',
-    evaluator: record.evaluator || ''
-  })
-  showAssessmentModal.value = true
-}
-
-const viewAssessmentDetail = (record) => {
-  // 查看评估详情
-  message.info('查看评估详情功能开发中')
-}
-
-const deleteAssessment = async (assessmentId) => {
-  try {
-    await talentApi.deleteAssessment(assessmentId)
-    message.success('评估删除成功')
-    loadAnalysisData()
-  } catch (error) {
-    console.error('删除评估失败:', error)
-    message.error('删除评估失败')
-  }
-}
-
-const handleAssessmentSubmit = async () => {
-  if (!assessmentForm.dimension || assessmentForm.score === 0) {
-    message.warning('请填写完整的评估信息')
-    return
-  }
-
+const submitEvaluation = async () => {
   submitting.value = true
   try {
-    if (editMode.value) {
-      await talentApi.updateAssessment(assessmentForm.id, assessmentForm)
-      message.success('评估更新成功')
-    } else {
-      await talentApi.addAssessment(talentId, assessmentForm)
-      message.success('评估添加成功')
-    }
-
-    showAssessmentModal.value = false
-    loadAnalysisData()
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    message.success('考核结果提交成功')
   } catch (error) {
-    console.error('保存评估失败:', error)
-    message.error('保存评估失败')
+    message.error('提交失败')
   } finally {
     submitting.value = false
   }
 }
 
-const handleAssessmentCancel = () => {
-  showAssessmentModal.value = false
-}
-
-const markSuggestionDone = async (suggestion) => {
-  try {
-    await talentApi.markSuggestionDone(suggestion.id)
-    message.success('建议已标记为完成')
-
-    // 从列表中移除
-    const index = suggestions.value.findIndex(s => s.id === suggestion.id)
-    if (index !== -1) {
-      suggestions.value.splice(index, 1)
-    }
-  } catch (error) {
-    console.error('标记建议失败:', error)
-    message.error('标记建议失败')
-  }
-}
-
+// 初始化
 onMounted(() => {
-  loadTalentInfo()
-  loadAnalysisData()
-})
-
-// 监听雷达图类型变化
-watch(() => radarType.value, () => {
-  loadAnalysisData()
+  parseIndicators()
 })
 </script>
 
 <style lang="less" scoped>
-.talent-analysis {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.appointment-evaluation-page {
+  padding: 24px;
+  background: #f0f2f5;
+  min-height: 100vh;
 }
 
-.analysis-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
+.page-header {
+  margin-bottom: 24px;
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
-  h2 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
+  h1 {
+    margin: 0 0 16px 0;
     color: #1f1f1f;
+    font-size: 28px;
   }
 
-  .header-actions {
+  .header-info {
     display: flex;
     align-items: center;
+    gap: 24px;
     flex-wrap: wrap;
-    gap: 8px;
+
+    .expert-name {
+      font-size: 18px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .expert-id,
+    .expert-dept {
+      color: #666;
+    }
   }
 }
 
-.overall-rating-card {
-  .overall-content {
+.appointment-info {
+  margin-bottom: 24px;
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+
+    .info-item {
+      .info-label {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .info-value {
+        color: #333;
+        font-weight: 500;
+        margin-left: 8px;
+      }
+    }
+  }
+}
+
+.upload-section {
+  margin-bottom: 24px;
+
+  .upload-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .upload-instructions {
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    border-radius: 4px;
+    padding: 16px;
+
+    h3 {
+      margin: 0 0 12px 0;
+      color: #389e0d;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+
+      li {
+        margin-bottom: 8px;
+        color: #666;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+
+  .upload-area {
+    :deep(.ant-upload-drag) {
+      padding: 40px 24px;
+    }
+  }
+
+  .upload-history {
+    .file-item {
+      display: flex;
+      align-items: center;
+
+      .file-name {
+        margin-right: 8px;
+        font-weight: 500;
+      }
+    }
+
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: #999;
+
+      .action-buttons {
+        margin-left: auto;
+      }
+    }
+  }
+}
+
+.indicator-section {
+  margin-bottom: 24px;
+
+  .indicator-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 24px;
     flex-wrap: wrap;
-    gap: 24px;
+    gap: 16px;
 
-    .rating-main {
-      flex: 1;
-      min-width: 300px;
+    .completion-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
 
-      .rating-score {
-        margin-bottom: 24px;
+      .stat-card {
+        background: white;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        padding: 16px;
+        min-width: 120px;
+        text-align: center;
 
-        .score-value {
-          font-size: 48px;
-          font-weight: 700;
-          color: #1890ff;
-          line-height: 1;
+        .stat-title {
+          color: #666;
+          font-size: 14px;
           margin-bottom: 8px;
         }
 
-        .score-label {
-          font-size: 16px;
-          color: #666;
+        .stat-value {
+          font-size: 20px;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+
+    .indicator-card {
+      background: white;
+      border: 1px solid #f0f0f0;
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.3s;
+
+      &:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .indicator-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+
+        .indicator-title {
+          h4 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 16px;
+          }
+        }
+
+        .indicator-score {
+          text-align: right;
+
+          .current-score {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1890ff;
+          }
+
+          .target-score {
+            font-size: 14px;
+            color: #999;
+          }
         }
       }
 
-      .rating-details {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 16px;
+      .indicator-progress {
+        margin-bottom: 16px;
+
+        .progress-label {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 8px;
+          font-size: 12px;
+          color: #666;
+
+          .status-completed {
+            color: #52c41a;
+          }
+
+          .status-partial {
+            color: #faad14;
+          }
+
+          .status-not-started {
+            color: #ff4d4f;
+          }
+        }
+      }
+
+      .indicator-details {
+        margin-bottom: 16px;
 
         .detail-item {
-          padding: 12px;
-          background: #fafafa;
-          border-radius: 6px;
-          border: 1px solid #f0f0f0;
+          display: flex;
+          margin-bottom: 8px;
+          font-size: 12px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
 
           .detail-label {
-            display: block;
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 4px;
+            color: #999;
+            min-width: 80px;
           }
 
           .detail-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
+            color: #666;
+            flex: 1;
           }
         }
       }
-    }
 
-    .rating-progress {
-      text-align: center;
-
-      .progress-label {
-        margin-top: 12px;
-        font-size: 14px;
-        color: #666;
-      }
-    }
-  }
-}
-
-.radar-section,
-.trend-section,
-.detailed-analysis,
-.suggestions-section {
-  .radar-card,
-  .trend-card {
-    .card-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .trend-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-
-      .trend-legend {
+      .indicator-actions {
         display: flex;
-        gap: 16px;
-
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 14px;
-
-          .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-          }
-        }
-      }
-    }
-
-    .radar-container,
-    .trend-container {
-      height: 350px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      .no-data {
-        text-align: center;
-        width: 100%;
-      }
-    }
-  }
-}
-
-.detailed-analysis {
-  :deep(.ant-table) {
-    .dimension-cell {
-      .dimension-name {
-        font-weight: 500;
-        color: #333;
-        margin-bottom: 4px;
-      }
-
-      .dimension-desc {
-        font-size: 12px;
-        color: #999;
-      }
-    }
-
-    .score-cell {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-
-      .score-value {
-        min-width: 40px;
-        text-align: right;
-        font-weight: 500;
-      }
-    }
-
-    .trend-cell {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-
-      .trend-text {
-        margin: 0 4px;
-      }
-
-      .trend-value {
-        font-size: 12px;
-        color: #999;
-      }
-    }
-
-    .analysis-actions {
-      display: flex;
-      gap: 4px;
-
-      .ant-btn {
-        padding: 0;
-        width: 24px;
-        height: 24px;
-      }
-    }
-  }
-}
-
-.suggestions-section {
-  .suggestions-card {
-    .suggestions-content {
-      .suggestion-title {
-        display: flex;
-        align-items: flex-start;
+        justify-content: flex-end;
         gap: 8px;
 
-        .suggestion-index {
-          background: #1890ff;
-          color: white;
-          width: 20px;
-          height: 20px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          flex-shrink: 0;
-        }
-
-        .suggestion-text {
-          flex: 1;
-        }
-      }
-
-      .suggestion-details {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-top: 4px;
-        flex-wrap: wrap;
-
-        .dimension-tag {
-          font-size: 12px;
-          color: #666;
-        }
-
-        .suggestion-time {
-          font-size: 12px;
-          color: #999;
-        }
-      }
-
-      .suggestion-actions {
         :deep(.ant-btn) {
           padding: 0;
+          height: auto;
         }
-      }
-
-      .no-suggestions {
-        text-align: center;
-        padding: 20px 0;
       }
     }
   }
 }
 
-.quick-assess-modal {
-  .assess-items {
-    .assess-item {
+.report-section {
+  .report-content {
+    > * {
+      margin-bottom: 24px;
+    }
+
+    .report-summary,
+    .report-suggestions {
+      h3 {
+        margin: 0 0 16px 0;
+        color: #333;
+      }
+    }
+
+    .expert-self-evaluation {
+      h3 {
+        margin: 0 0 16px 0;
+        color: #333;
+      }
+
+      .self-evaluation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+
+        .evaluation-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .evaluation-label {
+            color: #666;
+            min-width: 80px;
+          }
+        }
+      }
+    }
+
+    .report-actions {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 0;
-      border-bottom: 1px solid #f0f0f0;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .assess-dimension {
-        flex: 1;
-        margin-right: 24px;
-
-        .dimension-name {
-          display: block;
-          font-weight: 500;
-          color: #333;
-          margin-bottom: 4px;
-        }
-
-        .dimension-desc {
-          font-size: 12px;
-          color: #666;
-          line-height: 1.4;
-        }
-      }
-
-      .assess-rating {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 200px;
-
-        .rating-value {
-          min-width: 40px;
-          text-align: right;
-          font-weight: 500;
-        }
-      }
+      justify-content: center;
+      gap: 16px;
+      padding-top: 24px;
+      border-top: 1px solid #e8e8e8;
     }
   }
 }
 
-.assess-remarks {
-  margin-top: 20px;
-}
+.evidence-viewer {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-.slider-value {
-  text-align: center;
-  margin-top: 8px;
-  font-weight: 500;
-  color: #1890ff;
+  .office-tip {
+    text-align: center;
+    color: #666;
+    margin-bottom: 16px;
+  }
 }
 
 @media (max-width: 768px) {
-  .analysis-header {
-    flex-direction: column;
-    align-items: stretch;
+  .page-header {
+    padding: 16px;
 
-    .header-actions {
+    h1 {
+      font-size: 24px;
+    }
+
+    .header-info {
       flex-direction: column;
-      align-items: stretch;
-
-      .ant-select, .ant-btn {
-        width: 100% !important;
-        margin-right: 0 !important;
-        margin-bottom: 8px;
-      }
+      align-items: flex-start;
+      gap: 12px;
     }
   }
 
-  .overall-rating-card .overall-content {
+  .indicator-header {
     flex-direction: column;
-    text-align: center;
+    align-items: flex-start !important;
+  }
 
-    .rating-details {
-      grid-template-columns: 1fr;
+  .indicator-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .completion-stats {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+
+    .stat-card {
+      min-width: calc(50% - 8px) !important;
     }
   }
 
-  .radar-card .card-title,
-  .trend-card .trend-controls {
+  .report-actions {
     flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
 
-  .quick-assess-modal .assess-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-
-    .assess-rating {
-      justify-content: space-between;
+    .ant-btn {
+      width: 100%;
     }
-  }
-
-  .suggestions-content .suggestion-details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
   }
 }
 </style>

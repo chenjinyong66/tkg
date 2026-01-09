@@ -36,6 +36,30 @@ class Config(BaseModel):
     model_dir: str = Field(default="", description="本地模型目录")
 
     # ============================================================
+    # 数据库配置
+    # ============================================================
+    db_type: str = Field(default="sqlite", description="数据库类型: sqlite, mysql, postgresql")
+    db_host: str = Field(default="localhost", description="数据库主机地址")
+    db_port: int = Field(default=5432, description="数据库端口")  # 默认为PostgreSQL端口
+    db_user: str = Field(default="postgres", description="数据库用户名")
+    db_password: str = Field(default="", description="数据库密码")
+    db_name: str = Field(default="yuxi_know", description="数据库名称")
+
+    # MySQL特定配置
+    mysql_host: str = Field(default="localhost", description="MySQL主机地址")
+    mysql_port: int = Field(default=3306, description="MySQL端口")
+    mysql_user: str = Field(default="root", description="MySQL用户名")
+    mysql_password: str = Field(default="", description="MySQL密码")
+    mysql_database: str = Field(default="yuxi_know", description="MySQL数据库名")
+
+    # PostgreSQL特定配置
+    postgres_host: str = Field(default="localhost", description="PostgreSQL主机地址")
+    postgres_port: int = Field(default=5432, description="PostgreSQL端口")
+    postgres_user: str = Field(default="postgres", description="PostgreSQL用户名")
+    postgres_password: str = Field(default="", description="PostgreSQL密码")
+    postgres_database: str = Field(default="yuxi_know", description="PostgreSQL数据库名")
+
+    # ============================================================
     # 功能开关
     # ============================================================
     enable_reranker: bool = Field(default=False, description="是否开启重排序")
@@ -47,7 +71,7 @@ class Config(BaseModel):
     # 模型配置
     # ============================================================
     default_model: str = Field(
-        default="siliconflow/deepseek-ai/DeepSeek-V3.2",
+        default="lmstudio/qwen/qwen3-1.7b",
         description="默认对话模型",
     )
     fast_model: str = Field(
@@ -55,7 +79,7 @@ class Config(BaseModel):
         description="快速响应模型",
     )
     embed_model: str = Field(
-        default="siliconflow/BAAI/bge-m3",
+        default="lmstudio/text-embedding-bge-m3",
         description="Embedding 模型",
     )
     reranker: str = Field(
@@ -208,6 +232,20 @@ class Config(BaseModel):
                 logger.warning(
                     f"Model directory ({self.model_dir}) does not exist. If not configured, please ignore it."
                 )
+
+        # 处理数据库配置 - 环境变量优先级最高
+        self.db_type = os.getenv("DB_TYPE") or self.db_type
+        self.mysql_host = os.getenv("MYSQL_HOST") or self.mysql_host
+        self.mysql_port = int(os.getenv("MYSQL_PORT") or str(self.mysql_port))
+        self.mysql_user = os.getenv("MYSQL_USER") or self.mysql_user
+        self.mysql_password = os.getenv("MYSQL_PASSWORD") or self.mysql_password
+        self.mysql_database = os.getenv("MYSQL_DATABASE") or self.mysql_database
+        
+        self.postgres_host = os.getenv("POSTGRES_HOST") or self.postgres_host
+        self.postgres_port = int(os.getenv("POSTGRES_PORT") or str(self.postgres_port))
+        self.postgres_user = os.getenv("POSTGRES_USER") or self.postgres_user
+        self.postgres_password = os.getenv("POSTGRES_PASSWORD") or self.postgres_password
+        self.postgres_database = os.getenv("POSTGRES_DATABASE") or self.postgres_database
 
         # 检查模型提供商的环境变量
         self.model_provider_status = {}

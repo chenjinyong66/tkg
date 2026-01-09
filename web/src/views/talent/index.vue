@@ -78,8 +78,8 @@
     <div class="stats-cards" v-if="!state.loading && talents.length > 0">
       <a-card class="stat-card" hoverable>
         <div class="stat-content">
-          <div class="stat-icon" style="background: var(--yn-power-blue-50);">
-            <TeamOutlined style="color: var(--yn-power-blue-600); font-size: 24px;" />
+          <div class="stat-icon" style="background: #e6f7ff;">
+            <TeamOutlined style="color: #1890ff; font-size: 24px;" />
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ totalTalents }}</div>
@@ -89,8 +89,8 @@
       </a-card>
       <a-card class="stat-card" hoverable>
         <div class="stat-content">
-          <div class="stat-icon" style="background: var(--yn-power-blue-50);">
-            <FileDoneOutlined style="color: var(--yn-power-blue-600); font-size: 24px;" />
+          <div class="stat-icon" style="background: #f6ffed;">
+            <FileDoneOutlined style="color: #52c41a; font-size: 24px;" />
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.parsedFiles || 0 }}</div>
@@ -100,8 +100,8 @@
       </a-card>
       <a-card class="stat-card" hoverable>
         <div class="stat-content">
-          <div class="stat-icon" style="background: var(--yn-power-blue-50);">
-            <RiseOutlined style="color: var(--yn-power-blue-600); font-size: 24px;" />
+          <div class="stat-icon" style="background: #fff7e6;">
+            <RiseOutlined style="color: #fa8c16; font-size: 24px;" />
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.averageRating || 0 }}/10</div>
@@ -111,8 +111,8 @@
       </a-card>
       <a-card class="stat-card" hoverable>
         <div class="stat-content">
-          <div class="stat-icon" style="background: var(--yn-power-blue-50);">
-            <ClusterOutlined style="color: var(--yn-power-blue-600); font-size: 24px;" />
+          <div class="stat-icon" style="background: #f9f0ff;">
+            <ClusterOutlined style="color: #722ed1; font-size: 24px;" />
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.graphExtracted || 0 }}</div>
@@ -395,7 +395,7 @@
           </div>
           <div class="card-content" @click="viewTalentDetails(talent)">
             <div class="card-header">
-              <div class="talent-avatar" :style="getAvatarStyle(talent)">
+              <div class="talent-avatar">
                 {{ talent.name?.charAt(0) || '?' }}
               </div>
               <div class="talent-basic">
@@ -405,7 +405,7 @@
                   <a-tag :color="getStatusColor(talent.status)" size="small">
                     {{ getStatusLabel(talent.status) }}
                   </a-tag>
-                  <a-tag v-if="talent.level" color="var(--yn-power-blue-500)" size="small">
+                  <a-tag v-if="talent.level" color="blue" size="small">
                     {{ getLevelLabel(talent.level) }}
                   </a-tag>
                 </div>
@@ -439,8 +439,7 @@
                   <a-tag
                       v-for="skill in (talent.skills || []).slice(0, 3)"
                       :key="skill"
-                      color="var(--yn-power-blue-100)"
-                      style="color: var(--yn-power-blue-600); border-color: var(--yn-power-blue-300);"
+                      color="blue"
                       size="small"
                   >
                     {{ skill }}
@@ -537,7 +536,7 @@
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'name'">
               <div class="table-cell-name">
-                <div class="avatar-small" style="background: linear-gradient(135deg, var(--yn-power-blue-500) 0%, var(--yn-power-blue-600) 100%);">
+                <div class="avatar-small">
                   {{ record.name?.charAt(0) || '?' }}
                 </div>
                 <div class="name-info">
@@ -563,7 +562,7 @@
                 <a-tag
                     v-for="skill in (record.skills || []).slice(0, 2)"
                     :key="skill"
-                    :color="skillColor"
+                    color="blue"
                     size="small"
                 >
                   {{ skill }}
@@ -879,10 +878,6 @@ const displayedTalents = computed(() => {
   return filtered.slice(start, end)
 })
 
-const skillColor = computed(() => {
-  return 'var(--yn-power-blue-100)'
-})
-
 const rowSelection = computed(() => ({
   selectedRowKeys: state.selectedTalents,
   onChange: (selectedRowKeys) => {
@@ -927,7 +922,7 @@ const formatCreatedTime = (createdAt) => {
 
 const getStatusColor = (status) => {
   const colors = {
-    active: 'var(--yn-power-blue-500)',
+    active: 'green',
     probation: 'orange',
     leave: 'blue',
     inactive: 'red'
@@ -956,10 +951,10 @@ const getLevelLabel = (level) => {
 }
 
 const getRatingColor = (rating) => {
-  if (!rating) return 'var(--main-300)'
-  if (rating >= 8) return 'var(--color-success-500)'
-  if (rating >= 6) return 'var(--color-warning-500)'
-  return 'var(--main-500)'
+  if (!rating) return '#d9d9d9'
+  if (rating >= 8) return '#52c41a'
+  if (rating >= 6) return '#faad14'
+  return '#ff4d4f'
 }
 
 const disabledFutureDate = (current) => {
@@ -1280,24 +1275,6 @@ const handleSizeChange = (current, size) => {
   state.pageSize = size
 }
 
-const getAvatarStyle = (talent) => {
-  // 根据名字生成渐变背景色
-  const colors = [
-    'linear-gradient(135deg, var(--main-500), var(--main-400))',
-    'linear-gradient(135deg, var(--main-500), var(--main-300))',
-    'linear-gradient(135deg, var(--main-400), var(--main-200))',
-    'linear-gradient(135deg, var(--main-700), var(--main-500))'
-  ]
-
-  // 根据名字的第一个字符的charCode选择颜色
-  const charCode = talent.name?.charCodeAt(0) || 0
-  const colorIndex = charCode % colors.length
-
-  return {
-    background: colors[colorIndex]
-  }
-}
-
 watch(() => route.path, (newPath) => {
   if (newPath === '/talent') {
     loadTalents()
@@ -1312,24 +1289,12 @@ onMounted(() => {
 <style lang="less" scoped>
 .talent-container {
   padding: 0;
-  background: var(--gray-10);
 }
 
 .header-tools {
   display: flex;
   align-items: center;
   gap: 12px;
-
-  :deep(.ant-input-search) {
-    .ant-input {
-      border-color: var(--main-30);
-
-      &:hover, &:focus {
-        border-color: var(--main-500);
-        box-shadow: 0 0 0 2px rgba(0, 102, 179, 0.1);
-      }
-    }
-  }
 }
 
 .stats-cards {
@@ -1337,14 +1302,12 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
   padding: 20px;
-  background: var(--main-0);
-  border-bottom: 1px solid var(--gray-200);
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
 
   .stat-card {
     border-radius: 8px;
-    border: 1px solid var(--main-30);
-    box-shadow: 0 2px 8px var(--shadow-1);
-    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
     .stat-content {
       display: flex;
@@ -1358,12 +1321,6 @@ onMounted(() => {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--main-30);
-
-        :deep(svg) {
-          color: var(--main-500);
-          font-size: 24px;
-        }
       }
 
       .stat-info {
@@ -1372,13 +1329,13 @@ onMounted(() => {
         .stat-value {
           font-size: 24px;
           font-weight: 600;
-          color: var(--main-500);
+          color: #1f1f1f;
           line-height: 1.2;
         }
 
         .stat-label {
           font-size: 14px;
-          color: var(--gray-600);
+          color: #666;
           margin-top: 4px;
         }
       }
@@ -1386,9 +1343,7 @@ onMounted(() => {
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px var(--shadow-3);
-      border-color: var(--main-200);
-      transition: all 0.3s;
+      transition: transform 0.3s;
     }
   }
 }
@@ -1402,11 +1357,6 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding: 16px;
-  background: var(--main-0);
-  border-radius: 8px;
-  border: 1px solid var(--main-30);
-  box-shadow: 0 2px 8px var(--shadow-1);
 
   .talents-info {
     display: flex;
@@ -1414,7 +1364,7 @@ onMounted(() => {
 
     .total-count {
       font-size: 16px;
-      color: var(--gray-900);
+      color: #333;
       font-weight: 500;
     }
   }
@@ -1433,21 +1383,21 @@ onMounted(() => {
 }
 
 .talent-card {
-  background: var(--main-0);
+  background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 12px var(--shadow-2);
-  border: 2px solid var(--main-30);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
   transition: all 0.3s;
   position: relative;
   overflow: hidden;
 
   &.selected {
-    border-color: var(--main-500);
-    box-shadow: 0 4px 16px var(--shadow-4);
+    border-color: #1890ff;
+    box-shadow: 0 2px 12px rgba(24, 144, 255, 0.2);
   }
 
   &:hover {
-    box-shadow: 0 8px 24px var(--shadow-3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
   }
 
@@ -1456,16 +1406,6 @@ onMounted(() => {
     top: 12px;
     left: 12px;
     z-index: 1;
-
-    :deep(.ant-checkbox-inner) {
-      border-color: var(--main-30);
-      border-radius: 4px;
-    }
-
-    :deep(.ant-checkbox-checked .ant-checkbox-inner) {
-      background: var(--main-500);
-      border-color: var(--main-500);
-    }
   }
 
   .card-content {
@@ -1479,16 +1419,17 @@ onMounted(() => {
     gap: 16px;
     margin-bottom: 16px;
     padding-bottom: 16px;
-    border-bottom: 1px solid var(--gray-200);
+    border-bottom: 1px solid #f0f0f0;
 
     .talent-avatar {
       width: 56px;
       height: 56px;
       border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--main-0);
+      color: white;
       font-size: 20px;
       font-weight: 600;
       flex-shrink: 0;
@@ -1501,7 +1442,7 @@ onMounted(() => {
         margin: 0 0 8px 0;
         font-size: 18px;
         font-weight: 600;
-        color: var(--main-500);
+        color: #1f1f1f;
         line-height: 1.2;
       }
 
@@ -1510,11 +1451,6 @@ onMounted(() => {
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
-
-        .employee-id {
-          font-size: 12px;
-          color: var(--gray-500);
-        }
       }
     }
   }
@@ -1529,14 +1465,10 @@ onMounted(() => {
         gap: 8px;
         margin-bottom: 8px;
         font-size: 14px;
-        color: var(--gray-600);
+        color: #666;
 
         &:last-child {
           margin-bottom: 0;
-        }
-
-        :deep(svg) {
-          color: var(--gray-500);
         }
 
         span {
@@ -1551,7 +1483,7 @@ onMounted(() => {
       .skills-title {
         font-size: 14px;
         font-weight: 500;
-        color: var(--gray-900);
+        color: #333;
         margin-bottom: 8px;
       }
 
@@ -1560,20 +1492,8 @@ onMounted(() => {
         flex-wrap: wrap;
         gap: 6px;
 
-        .skill-tag {
-          background: var(--main-30);
-          color: var(--main-500);
-          border-color: var(--main-200);
-        }
-
-        .more-skills-tag {
-          background: var(--gray-100);
-          color: var(--gray-600);
-          border-color: var(--gray-300);
-        }
-
         .no-skills {
-          color: var(--gray-400);
+          color: #bfbfbf;
           font-style: italic;
           font-size: 14px;
         }
@@ -1583,19 +1503,19 @@ onMounted(() => {
     .rating-section {
       margin-bottom: 16px;
       padding: 12px;
-      background: var(--main-10);
+      background: #fafafa;
       border-radius: 6px;
 
       .rating-label {
         font-size: 14px;
-        color: var(--gray-600);
+        color: #666;
         margin-bottom: 8px;
       }
 
       .rating-value {
         font-size: 14px;
         font-weight: 500;
-        color: var(--main-500);
+        color: #1890ff;
         margin-left: 8px;
       }
     }
@@ -1604,10 +1524,9 @@ onMounted(() => {
       display: flex;
       justify-content: space-around;
       padding: 12px;
-      background: var(--color-success-50);
+      background: #f6ffed;
       border-radius: 6px;
       margin-bottom: 16px;
-      border: 1px solid var(--color-success-100);
 
       .stat-item {
         display: flex;
@@ -1615,19 +1534,15 @@ onMounted(() => {
         align-items: center;
         gap: 4px;
 
-        :deep(svg) {
-          color: var(--color-success-500);
-        }
-
         .stat-value {
           font-size: 16px;
           font-weight: 600;
-          color: var(--color-success-500);
+          color: #52c41a;
         }
 
         .stat-label {
           font-size: 12px;
-          color: var(--gray-600);
+          color: #666;
         }
       }
     }
@@ -1638,11 +1553,11 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     padding-top: 16px;
-    border-top: 1px solid var(--gray-200);
+    border-top: 1px solid #f0f0f0;
 
     .create-time {
       font-size: 12px;
-      color: var(--gray-500);
+      color: #999;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -1652,19 +1567,10 @@ onMounted(() => {
       display: flex;
       gap: 4px;
 
-      .action-btn {
+      .ant-btn {
         padding: 4px;
         width: 32px;
         height: 32px;
-        color: var(--gray-600);
-
-        &:hover {
-          color: var(--main-500);
-        }
-
-        &.danger-btn:hover {
-          color: var(--color-error-500);
-        }
       }
     }
   }
@@ -1672,40 +1578,10 @@ onMounted(() => {
 
 .talents-table {
   margin-bottom: 20px;
-  background: var(--main-0);
+  background: #fff;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--main-30);
-  box-shadow: 0 2px 8px var(--shadow-1);
-
-  .yn-grid-table {
-    :deep(.ant-table-thead > tr > th) {
-      background: var(--main-10);
-      color: var(--gray-600);
-      font-weight: 600;
-      border-bottom: 1px solid var(--main-30);
-    }
-
-    :deep(.ant-table-tbody > tr > td) {
-      border-bottom: 1px solid var(--main-30);
-    }
-
-    :deep(.ant-table-tbody > tr:hover > td) {
-      background: var(--main-20);
-    }
-
-    /* 选中行悬停 - 添加这个 */
-    :deep(.ant-table-row-selected:hover > td) {
-      background: var(--main-40) !important;  /* 更深的蓝色 */
-      border-color: var(--main-200);
-    }
-    /* 选中行的基础样式 */
-    :deep(.ant-table-row-selected > td) {
-      background: var(--main-30);  /* 选中状态的背景色 */
-      border-bottom-color: var(--main-200);
-    }
-
-  }
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
   .table-cell-name {
     display: flex;
@@ -1716,10 +1592,11 @@ onMounted(() => {
       width: 36px;
       height: 36px;
       border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--main-0);
+      color: white;
       font-size: 14px;
       font-weight: 600;
       flex-shrink: 0;
@@ -1728,13 +1605,13 @@ onMounted(() => {
     .name-info {
       .name {
         font-weight: 500;
-        color: var(--main-500);
+        color: #333;
         line-height: 1.2;
       }
 
       .employee-id {
         font-size: 12px;
-        color: var(--gray-500);
+        color: #999;
         margin-top: 2px;
       }
     }
@@ -1746,20 +1623,10 @@ onMounted(() => {
     gap: 4px;
     flex-wrap: wrap;
 
-    .skill-tag {
-      background: var(--main-30);
-      color: var(--main-500);
-      border-color: var(--main-200);
-    }
-
     .more-skills {
       font-size: 12px;
-      color: var(--gray-500);
+      color: #999;
     }
-  }
-
-  .level-label {
-    font-weight: 500;
   }
 
   .rating-cell {
@@ -1771,19 +1638,18 @@ onMounted(() => {
       font-size: 14px;
       font-weight: 500;
       min-width: 20px;
-      color: var(--gray-900);
     }
   }
 
   .files-cell {
     .file-count {
       font-weight: 500;
-      color: var(--gray-900);
+      color: #333;
     }
 
     .file-parsed {
       font-size: 12px;
-      color: var(--color-success-500);
+      color: #52c41a;
     }
   }
 
@@ -1791,24 +1657,15 @@ onMounted(() => {
     display: flex;
     gap: 4px;
 
-    .action-link {
+    .ant-btn {
       padding: 4px;
       width: 28px;
       height: 28px;
-      color: var(--gray-600);
-
-      &:hover {
-        color: var(--main-500);
-      }
-
-      &.danger-link:hover {
-        color: var(--color-error-500);
-      }
     }
   }
 
   .text-muted {
-    color: var(--gray-500);
+    color: #999;
   }
 }
 
@@ -1816,45 +1673,9 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding: 20px 0;
-  background: var(--main-0);
+  background: #fff;
   border-radius: 8px;
-  border: 1px solid var(--main-30);
-  box-shadow: 0 2px 8px var(--shadow-1);
-}
-
-.yn-grid-pagination {
-  :deep(.ant-pagination-item) {
-    border-color: var(--main-30);
-
-    &:hover {
-      border-color: var(--main-500);
-
-      a {
-        color: var(--main-500);
-      }
-    }
-
-    &.ant-pagination-item-active {
-      background: var(--main-500);
-      border-color: var(--main-500);
-
-      a {
-        color: var(--main-0);
-      }
-    }
-  }
-
-  :deep(.ant-pagination-prev, .ant-pagination-next) {
-    .ant-pagination-item-link {
-      border-color: var(--main-30);
-      color: var(--gray-600);
-
-      &:hover {
-        border-color: var(--main-500);
-        color: var(--main-500);
-      }
-    }
-  }
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .loading-container {
@@ -1865,12 +1686,8 @@ onMounted(() => {
   height: 400px;
   gap: 16px;
 
-  :deep(.ant-spin) {
-    color: var(--main-500);
-  }
-
   p {
-    color: var(--gray-600);
+    color: #666;
     margin-top: 12px;
   }
 }
@@ -1882,33 +1699,23 @@ onMounted(() => {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-  background: var(--main-0);
-  border-radius: 12px;
-  border: 1px solid var(--main-30);
-  box-shadow: 0 2px 8px var(--shadow-1);
-  margin: 20px;
 
   .empty-illustration {
     margin-bottom: 24px;
-
-    :deep(svg) {
-      font-size: 80px;
-      color: var(--main-500);
-      opacity: 0.3;
-    }
+    opacity: 0.6;
   }
 
   .empty-title {
     font-size: 20px;
     font-weight: 600;
-    color: var(--gray-900);
+    color: #333;
     margin: 0 0 12px 0;
     letter-spacing: -0.02em;
   }
 
   .empty-description {
     font-size: 14px;
-    color: var(--gray-600);
+    color: #666;
     margin: 0 0 32px 0;
     line-height: 1.5;
     max-width: 320px;
@@ -1923,12 +1730,10 @@ onMounted(() => {
 .batch-modal-content {
   .batch-selected {
     padding: 12px;
-    background: var(--color-success-50);
+    background: #f6ffed;
     border-radius: 6px;
     text-align: center;
     font-weight: 500;
-    color: var(--color-success-700);
-    border: 1px solid var(--color-success-100);
   }
 
   .batch-actions {
@@ -1943,20 +1748,6 @@ onMounted(() => {
     max-height: 70vh;
     overflow-y: auto;
     padding: 24px;
-  }
-
-  :deep(.ant-modal-header) {
-    background: var(--main-10);
-    border-bottom: 1px solid var(--main-30);
-
-    .ant-modal-title {
-      color: var(--main-500);
-      font-weight: 600;
-    }
-  }
-
-  :deep(.ant-modal-footer) {
-    border-top: 1px solid var(--main-30);
   }
 }
 

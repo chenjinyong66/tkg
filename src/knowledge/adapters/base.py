@@ -95,13 +95,13 @@ class GraphAdapter(ABC):
         )
 
     def _create_standard_node(
-        self,
-        node_id: str,
-        name: str,
-        entity_type: str,
-        labels: list[str],
-        properties: dict[str, Any],
-        source: str,
+            self,
+            node_id: str,
+            name: str,
+            entity_type: str,
+            labels: list[str],
+            properties: dict[str, Any],
+            source: str,
     ) -> dict[str, Any]:
         """
         Helper to create a standardized node dictionary.
@@ -122,13 +122,13 @@ class GraphAdapter(ABC):
         }
 
     def _create_standard_edge(
-        self,
-        edge_id: str,
-        source_id: str,
-        target_id: str,
-        edge_type: str,
-        properties: dict[str, Any],
-        direction: str = "directed",
+            self,
+            edge_id: str,
+            source_id: str,
+            target_id: str,
+            edge_type: str,
+            properties: dict[str, Any],
+            direction: str = "directed",
     ) -> dict[str, Any]:
         """
         Helper to create a standardized edge dictionary.

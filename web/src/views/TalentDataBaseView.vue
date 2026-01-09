@@ -3,23 +3,22 @@
     <HeaderComponent title="文档知识库" :loading="state.loading">
       <template #actions>
         <a-button type="primary" @click="state.openNewDatabaseModel=true">
-          新建知识库
+          新建人才库
         </a-button>
       </template>
     </HeaderComponent>
 
-    <a-modal :open="state.openNewDatabaseModel" title="新建知识库" @ok="createDatabase" @cancel="cancelCreateDatabase" class="new-database-modal" width="800px">
+    <a-modal :open="state.openNewDatabaseModel" title="新建人才库" @ok="createDatabase" @cancel="cancelCreateDatabase" class="new-database-modal" width="800px">
 
       <!-- 知识库类型选择 -->
       <h3>知识库类型<span style="color: var(--color-error-500)">*</span></h3>
       <div class="kb-type-cards">
         <div
-            v-for="(typeInfo, typeKey) in orderedKbTypes"
-            :key="typeKey"
-            class="kb-type-card"
-            :class="{ active: newDatabase.kb_type === typeKey }"
-            :data-type="typeKey"
-            @click="handleKbTypeChange(typeKey)"
+          v-for="(typeInfo, typeKey) in supportedKbTypes"
+          :key="typeKey"
+          class="kb-type-card"
+          :class="{ active: newDatabase.kb_type === typeKey }"
+          @click="handleKbTypeChange(typeKey)"
         >
           <div class="card-header">
             <component :is="getKbTypeIcon(typeKey)" class="type-icon" />
@@ -43,51 +42,45 @@
       <a-input v-model:value="newDatabase.name" placeholder="新建知识库名称" size="large" />
 
       <h3>嵌入模型</h3>
-      <EmbeddingModelSelector
-          v-model:value="newDatabase.embed_model_name"
-          style="width: 100%;"
-          size="large"
-          placeholder="请选择嵌入模型"
-      />
+      <a-select v-model:value="newDatabase.embed_model_name" :options="embedModelOptions" style="width: 100%;" size="large" />
 
       <!-- 仅对 LightRAG 提供语言选择和LLM选择 -->
       <div v-if="newDatabase.kb_type === 'lightrag'">
         <h3 style="margin-top: 20px;">语言</h3>
         <a-select
-            v-model:value="newDatabase.language"
-            :options="languageOptions"
-            style="width: 100%;"
-            size="large"
-            :dropdown-match-select-width="false"
+          v-model:value="newDatabase.language"
+          :options="languageOptions"
+          style="width: 100%;"
+          size="large"
+          :dropdown-match-select-width="false"
         />
 
         <h3 style="margin-top: 20px;">语言模型 (LLM)</h3>
         <p style="color: var(--gray-700); font-size: 14px;">可以在设置中配置语言模型</p>
         <ModelSelectorComponent
-            :model_spec="llmModelSpec"
-            placeholder="请选择模型"
-            @select-model="handleLLMSelect"
-            size="large"
-            style="width: 100%; height: 60px;"
+          :model_spec="llmModelSpec"
+          placeholder="请选择模型"
+          @select-model="handleLLMSelect"
+          size="large"
+          style="width: 100%; height: 60px;"
         />
       </div>
 
       <h3 style="margin-top: 20px;">知识库描述</h3>
       <p style="color: var(--gray-700); font-size: 14px;">在智能体流程中，这里的描述会作为工具的描述。智能体会根据知识库的标题和描述来选择合适的工具。所以这里描述的越详细，智能体越容易选择到合适的工具。</p>
-      <AiTextarea
-          v-model="newDatabase.description"
-          :name="newDatabase.name"
-          placeholder="新建知识库描述"
-          :auto-size="{ minRows: 3, maxRows: 10 }"
+      <a-textarea
+        v-model:value="newDatabase.description"
+        placeholder="新建知识库描述"
+        :auto-size="{ minRows: 5, maxRows: 10 }"
       />
 
       <h3 style="margin-top: 20px;">隐私设置</h3>
       <div class="privacy-config">
         <a-switch
-            v-model:checked="newDatabase.is_private"
-            checked-children="私有"
-            un-checked-children="公开"
-            size="default"
+          v-model:checked="newDatabase.is_private"
+          checked-children="私有"
+          un-checked-children="公开"
+          size="default"
         />
         <span style="margin-left: 12px;">设置为私有知识库</span>
         <a-tooltip title="在部分智能体的设计中，可以根据隐私标志来决定启用什么模型和策略。例如，对于私有知识库，可以选择更严格的数据处理和访问控制策略，以保护敏感信息的安全性和隐私性。">
@@ -96,8 +89,8 @@
       </div>
 
       <div
-          v-if="['milvus'].includes(newDatabase.kb_type)"
-          class="reranker-config"
+        v-if="['chroma', 'milvus'].includes(newDatabase.kb_type)"
+        class="reranker-config"
       >
         <div class="reranker-row">
           <div class="reranker-title">
@@ -107,8 +100,8 @@
             </a-tooltip>
           </div>
           <a-switch
-              v-model:checked="newDatabase.reranker.enabled"
-              :disabled="rerankerOptions.length === 0"
+            v-model:checked="newDatabase.reranker.enabled"
+            :disabled="rerankerOptions.length === 0"
           />
         </div>
 
@@ -117,10 +110,10 @@
             <div class="form-field">
               <label>重排序模型</label>
               <a-select
-                  v-model:value="newDatabase.reranker.model"
-                  :options="rerankerOptions"
-                  placeholder="选择重排序模型"
-                  :disabled="rerankerOptions.length === 0"
+                v-model:value="newDatabase.reranker.model"
+                :options="rerankerOptions"
+                placeholder="选择重排序模型"
+                :disabled="rerankerOptions.length === 0"
               />
               <p class="field-hint" v-if="rerankerOptions.length === 0">
                 暂无可用模型，请在系统配置中添加。
@@ -131,21 +124,21 @@
               <div class="form-field">
                 <label>召回数量</label>
                 <a-input-number
-                    v-model:value="newDatabase.reranker.recall_top_k"
-                    :min="10"
-                    :max="200"
-                    :step="5"
-                    style="width: 100%;"
+                  v-model:value="newDatabase.reranker.recall_top_k"
+                  :min="10"
+                  :max="200"
+                  :step="5"
+                  style="width: 100%;"
                 />
                 <p class="field-hint">向量检索阶段保留的候选数量</p>
               </div>
               <div class="form-field">
                 <label>最终返回数</label>
                 <a-input-number
-                    v-model:value="newDatabase.reranker.final_top_k"
-                    :min="1"
-                    :max="100"
-                    style="width: 100%;"
+                  v-model:value="newDatabase.reranker.final_top_k"
+                  :min="1"
+                  :max="100"
+                  style="width: 100%;"
                 />
                 <p class="field-hint">重排序后返回给前端的文档数量</p>
               </div>
@@ -165,30 +158,18 @@
       <p>正在加载知识库...</p>
     </div>
 
-    <!-- 空状态显示 -->
-    <div v-else-if="!databases || databases.length === 0" class="empty-state">
-      <h3 class="empty-title">暂无知识库</h3>
-      <p class="empty-description">创建您的第一个知识库，开始管理文档和知识</p>
-      <a-button type="primary" size="large" @click="state.openNewDatabaseModel = true">
-        <template #icon>
-          <PlusOutlined />
-        </template>
-        创建知识库
-      </a-button>
-    </div>
-
     <!-- 数据库列表 -->
     <div v-else class="databases">
       <div
-          v-for="database in databases"
-          :key="database.db_id"
-          class="database dbcard"
-          @click="navigateToDatabase(database.db_id)">
+        v-for="database in databases"
+        :key="database.db_id"
+        class="database dbcard"
+        @click="navigateToDatabase(database.db_id)">
         <!-- 私有知识库锁定图标 -->
         <LockOutlined
-            v-if="database.metadata?.is_private"
-            class="private-lock-icon"
-            title="私有知识库"
+          v-if="database.metadata?.is_private"
+          class="private-lock-icon"
+          title="私有知识库"
         />
         <div class="top">
           <div class="icon">
@@ -212,13 +193,14 @@
           <a-tag color="blue" v-if="database.embed_info?.name">{{ database.embed_info.name }}</a-tag>
           <!-- <a-tag color="green" v-if="database.embed_info?.dimension">{{ database.embed_info.dimension }}</a-tag> -->
           <a-tag
-              :color="getKbTypeColor(database.kb_type || 'lightrag')"
-              class="kb-type-tag"
-              size="small"
+            :color="getKbTypeColor(database.kb_type || 'lightrag')"
+            class="kb-type-tag"
+            size="small"
           >
             {{ getKbTypeLabel(database.kb_type || 'lightrag') }}
           </a-tag>
-        </div>
+          </div>
+
         <!-- <button @click="deleteDatabase(database.collection_name)">删除</button> -->
       </div>
     </div>
@@ -230,20 +212,17 @@ import { ref, onMounted, reactive, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router';
 import { useConfigStore } from '@/stores/config';
 import { message } from 'ant-design-vue'
-import { Database, FileDigit, Waypoints, Building2, DatabaseZap } from 'lucide-vue-next';
-import { LockOutlined, InfoCircleOutlined, QuestionCircleOutlined, PlusOutlined } from '@ant-design/icons-vue';
+import { Database, Zap, FileDigit,  Waypoints, Building2 } from 'lucide-vue-next';
+import { LockOutlined, InfoCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue';
 import { databaseApi, typeApi } from '@/apis/knowledge_api';
 import HeaderComponent from '@/components/HeaderComponent.vue';
 import ModelSelectorComponent from '@/components/ModelSelectorComponent.vue';
-import EmbeddingModelSelector from '@/components/EmbeddingModelSelector.vue';
 import dayjs, { parseToShanghai } from '@/utils/time';
-import AiTextarea from '@/components/AiTextarea.vue';
 
 const route = useRoute()
 const router = useRouter()
-const configStore = useConfigStore()
-
 const databases = ref([])
+const configStore = useConfigStore()
 
 const state = reactive({
   loading: false,
@@ -251,20 +230,36 @@ const state = reactive({
   openNewDatabaseModel: false,
 })
 
+const embedModelOptions = computed(() => {
+  return Object.keys(configStore.config?.embed_model_names || {}).map(key => ({
+    label: `${key} (${configStore.config?.embed_model_names[key]?.dimension})`,
+    value: key,
+  }))
+})
 
 // 语言选项（值使用英文，以保证后端/LightRAG 兼容；标签为中英文方便理解）
 const languageOptions = [
-  { label: '中文 Chinese', value: 'Chinese' }
+  { label: '英语 English', value: 'English' },
+  { label: '中文 Chinese', value: 'Chinese' },
+  { label: '日语 Japanese', value: 'Japanese' },
+  { label: '韩语 Korean', value: 'Korean' },
+  { label: '德语 German', value: 'German' },
+  { label: '法语 French', value: 'French' },
+  { label: '西班牙语 Spanish', value: 'Spanish' },
+  { label: '葡萄牙语 Portuguese', value: 'Portuguese' },
+  { label: '俄语 Russian', value: 'Russian' },
+  { label: '阿拉伯语 Arabic', value: 'Arabic' },
+  { label: '印地语 Hindi', value: 'Hindi' },
 ]
 
 const createEmptyDatabaseForm = () => ({
   name: '',
   description: '',
   embed_model_name: configStore.config?.embed_model,
-  kb_type: 'milvus',
+  kb_type: 'chroma',
   is_private: false,
   storage: '',
-  language: 'Chinese',
+  language: 'English',
   llm_info: {
     provider: '',
     model_name: ''
@@ -280,13 +275,13 @@ const createEmptyDatabaseForm = () => ({
 const newDatabase = reactive(createEmptyDatabaseForm())
 
 const rerankerOptions = computed(() =>
-    Object.entries(configStore?.config?.reranker_names || {}).map(([value, info]) => ({
-      label: info?.name || value,
-      value
-    }))
+  Object.entries(configStore?.config?.reranker_names || {}).map(([value, info]) => ({
+    label: info?.name || value,
+    value
+  }))
 )
 
-const isVectorKb = computed(() => ['milvus'].includes(newDatabase.kb_type))
+const isVectorKb = computed(() => ['chroma', 'milvus'].includes(newDatabase.kb_type))
 
 const llmModelSpec = computed(() => {
   const provider = newDatabase.llm_info?.provider || ''
@@ -299,9 +294,6 @@ const llmModelSpec = computed(() => {
 
 // 支持的知识库类型
 const supportedKbTypes = ref({})
-
-// 有序的知识库类型
-const orderedKbTypes = computed(() => supportedKbTypes.value)
 
 // 加载支持的知识库类型
 const loadSupportedKbTypes = async () => {
@@ -321,33 +313,33 @@ const loadSupportedKbTypes = async () => {
   }
 }
 
-// 加载数据库列表 - 通过接口查询
+// 重排序模型信息现在直接从 configStore.config.reranker_names 获取，无需单独加载
+
 const loadDatabases = () => {
   state.loading = true
+  // loadGraph()
   databaseApi.getDatabases()
-      .then(data => {
-        console.log('加载数据库列表:', data)
-        // 按照创建时间排序，最新的在前面
-        databases.value = data.databases.sort((a, b) => {
-          const timeA = parseToShanghai(a.created_at)
-          const timeB = parseToShanghai(b.created_at)
-          if (!timeA && !timeB) return 0
-          if (!timeA) return 1
-          if (!timeB) return -1
-          return timeB.valueOf() - timeA.valueOf() // 降序排列，最新的在前面
-        })
-        state.loading = false
+    .then(data => {
+      console.log(data)
+      // 按照创建时间排序，最新的在前面
+      databases.value = data.databases.sort((a, b) => {
+        const timeA = parseToShanghai(a.created_at)
+        const timeB = parseToShanghai(b.created_at)
+        if (!timeA && !timeB) return 0
+        if (!timeA) return 1
+        if (!timeB) return -1
+        return timeB.valueOf() - timeA.valueOf() // 降序排列，最新的在前面
       })
-      .catch(error => {
-        console.error('加载数据库列表失败:', error);
-        if (error.message.includes('权限')) {
-          message.error('需要管理员权限访问知识库')
-        }
-        state.loading = false
-      })
+      state.loading = false
+    })
+    .catch(error => {
+      console.error('加载数据库列表失败:', error);
+      if (error.message.includes('权限')) {
+        message.error('需要管理员权限访问知识库')
+      }
+      state.loading = false
+    })
 }
-
-// 重排序模型信息现在直接从 configStore.config.reranker_names 获取，无需单独加载
 
 const resetNewDatabase = () => {
   Object.assign(newDatabase, createEmptyDatabaseForm())
@@ -361,7 +353,8 @@ const cancelCreateDatabase = () => {
 const getKbTypeLabel = (type) => {
   const labels = {
     lightrag: 'LightRAG',
-    milvus: 'CommonRAG'
+    chroma: 'Chroma',
+    milvus: 'Milvus'
   }
   return labels[type] || type
 }
@@ -369,18 +362,39 @@ const getKbTypeLabel = (type) => {
 const getKbTypeIcon = (type) => {
   const icons = {
     lightrag: Waypoints,
-    milvus: DatabaseZap
+    chroma: FileDigit,
+    milvus: Building2
   }
   return icons[type] || Database
+}
+
+// const getKbTypeDescription = (type) => {
+//   const descriptions = {
+//     lightrag: '🔥 图结构索引 • 智能查询 • 关系挖掘 • 复杂推理',
+//     chroma: '⚡ 轻量向量 • 快速开发 • 本地部署 • 简单易用',
+//     milvus: '🚀 生产级 • 高性能 • 分布式 • 企业级部署'
+//   }
+//   return descriptions[type] || ''
+// }
+
+const getKbTypeAlertType = (type) => {
+  const types = {
+    lightrag: 'info',
+    chroma: 'success',
+    milvus: 'warning'
+  }
+  return types[type] || 'info'
 }
 
 const getKbTypeColor = (type) => {
   const colors = {
     lightrag: 'purple',
+    chroma: 'orange',
     milvus: 'red'
   }
   return colors[type] || 'blue'
 }
+
 
 // 格式化创建时间
 const formatCreatedTime = (createdAt) => {
@@ -418,7 +432,7 @@ const handleKbTypeChange = (type) => {
   console.log('知识库类型改变:', type)
   resetNewDatabase()
   newDatabase.kb_type = type
-  if (!['milvus'].includes(type)) {
+  if (!['chroma', 'milvus'].includes(type)) {
     newDatabase.reranker.enabled = false
   }
 }
@@ -436,8 +450,7 @@ const handleLLMSelect = (spec) => {
   newDatabase.llm_info.model_name = modelName
 }
 
-// 创建知识库函数 - 使用API调用
-const createDatabase = async () => {
+const createDatabase = () => {
   if (!newDatabase.name?.trim()) {
     message.error('数据库名称不能为空')
     return
@@ -460,11 +473,12 @@ const createDatabase = async () => {
     }
   }
 
-  // 根据类型添加特定配置
-  if (['milvus'].includes(newDatabase.kb_type)) {
+  // 添加类型特有的配置
+  if (newDatabase.kb_type === 'chroma' || newDatabase.kb_type === 'milvus') {
     if (newDatabase.storage) {
       requestData.additional_params.storage = newDatabase.storage
     }
+
     if (newDatabase.reranker.enabled) {
       if (!newDatabase.reranker.model) {
         message.error('请选择重排序模型')
@@ -481,7 +495,8 @@ const createDatabase = async () => {
   }
 
   if (newDatabase.kb_type === 'lightrag') {
-    requestData.additional_params.language = newDatabase.language || 'Chinese'
+    requestData.additional_params.language = newDatabase.language || 'English'
+    // 添加LLM信息到请求数据
     if (newDatabase.llm_info.provider && newDatabase.llm_info.model_name) {
       requestData.llm_info = {
         provider: newDatabase.llm_info.provider,
@@ -490,20 +505,21 @@ const createDatabase = async () => {
     }
   }
 
-  try {
-    const data = await databaseApi.createDatabase(requestData)
-    console.log('创建成功:', data)
-    // 重新加载知识库列表
-    loadDatabases()
-    resetNewDatabase()
-    state.openNewDatabaseModel = false
-    message.success('创建成功')
-  } catch (error) {
-    console.error('创建数据库失败:', error)
-    message.error(error.message || '创建失败')
-  } finally {
-    state.creating = false
-  }
+  databaseApi.createDatabase(requestData)
+    .then(data => {
+      console.log('创建成功:', data)
+      loadDatabases()
+      resetNewDatabase()
+      message.success('创建成功')
+    })
+    .catch(error => {
+      console.error('创建数据库失败:', error)
+      message.error(error.message || '创建失败')
+    })
+    .finally(() => {
+      state.creating = false
+      state.openNewDatabaseModel = false
+    })
 }
 
 const navigateToDatabase = (databaseId) => {
@@ -512,9 +528,9 @@ const navigateToDatabase = (databaseId) => {
 
 watch(() => newDatabase.reranker.enabled, (enabled) => {
   if (
-      enabled &&
-      !newDatabase.reranker.model &&
-      rerankerOptions.value.length > 0
+    enabled &&
+    !newDatabase.reranker.model &&
+    rerankerOptions.value.length > 0
   ) {
     newDatabase.reranker.model = rerankerOptions.value[0].value
   }
@@ -537,16 +553,16 @@ watch(isVectorKb, (isVector) => {
 })
 
 watch(
-    () => newDatabase.reranker.final_top_k,
-    (value) => {
-      if (!newDatabase.reranker.enabled) return
-      if (value > newDatabase.reranker.recall_top_k) {
-        newDatabase.reranker.recall_top_k = value
-      }
+  () => newDatabase.reranker.final_top_k,
+  (value) => {
+    if (!newDatabase.reranker.enabled) return
+    if (value > newDatabase.reranker.recall_top_k) {
+      newDatabase.reranker.recall_top_k = value
     }
+  }
 )
 
-watch(() => route.path, (newPath) => {
+watch(() => route.path, (newPath, oldPath) => {
   if (newPath === '/database') {
     loadDatabases();
   }
@@ -664,12 +680,24 @@ onMounted(() => {
         border-color: var(--main-color);
       }
 
-      &.active {
-        border-color: var(--main-color);
-        background: var(--main-10);
-        .type-icon { color: var(--main-color); }
+      // 为不同知识库类型设置不同的悬停颜色与主题色
+      &:nth-child(1):hover,
+      &:nth-child(1).active {
+        border-color: var(--color-accent-100);
+        .type-icon { color: var(--color-accent-500); }
       }
 
+      &:nth-child(2):hover,
+      &:nth-child(2).active {
+        border-color: var(--color-warning-100);
+        .type-icon { color: var(--color-warning-500); }
+      }
+
+      &:nth-child(3):hover,
+      &:nth-child(3).active {
+        border-color: var(--color-error-100);
+        .type-icon { color: var(--color-error-500); }
+      }
       .card-header {
         display: flex;
         align-items: center;
@@ -697,26 +725,6 @@ onMounted(() => {
         margin-bottom: 0;
         // min-height: 40px;
       }
-
-      .deprecated-badge {
-        background: var(--color-error-100);
-        color: var(--color-error-600);
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: auto;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        cursor: help;
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: var(--color-error-200);
-          color: var(--color-error-700);
-        }
-      }
-
     }
   }
 
@@ -765,7 +773,14 @@ onMounted(() => {
       .top {
         .info {
           h3 {
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+
+            .kb-type-tag {
+              margin-left: auto;
+            }
           }
         }
       }
@@ -792,9 +807,9 @@ onMounted(() => {
 
 .dbcard, .database {
   width: 100%;
-  padding: 16px;
+  padding: 24px;
   border-radius: 16px;
-  height: 156px;
+  height: 180px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -838,9 +853,6 @@ onMounted(() => {
     }
 
     .info {
-      flex: 1;
-      min-width: 0;
-
       h3, p {
         margin: 0;
         color: var(--gray-10000);
@@ -851,9 +863,6 @@ onMounted(() => {
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.4;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
       }
 
       p {
@@ -867,7 +876,7 @@ onMounted(() => {
         font-weight: 400;
 
         .created-time-inline {
-          color: var(--gray-700);
+          color: var(--gray-500);
           font-size: 11px;
           font-weight: 400;
           background: var(--gray-50);
@@ -891,6 +900,8 @@ onMounted(() => {
     font-weight: 400;
     flex: 1;
   }
+
+
 }
 
 .database-empty {
@@ -900,38 +911,6 @@ onMounted(() => {
   height: 100%;
   flex-direction: column;
   color: var(--gray-900);
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-  text-align: center;
-
-  .empty-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--gray-900);
-    margin: 0 0 12px 0;
-    letter-spacing: -0.02em;
-  }
-
-  .empty-description {
-    font-size: 14px;
-    color: var(--gray-600);
-    margin: 0 0 32px 0;
-    line-height: 1.5;
-    max-width: 320px;
-  }
-
-  .ant-btn {
-    height: 44px;
-    padding: 0 24px;
-    font-size: 15px;
-    font-weight: 500;
-  }
 }
 
 .database-container {

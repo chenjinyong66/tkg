@@ -120,6 +120,12 @@ const mainList = [
     activeIcon: Search,
   },
   {
+    name: 'AI识人',
+    path: '/aisearch',
+    icon: Search,
+    activeIcon: Search,
+  },
+  {
     name: '知识库',
     path: '/database',
     icon: Database,
