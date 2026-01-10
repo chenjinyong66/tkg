@@ -1,10 +1,10 @@
 import os
 import traceback
 
-from lightrag import LightRAG, QueryParam
-from lightrag.kg.shared_storage import initialize_pipeline_status
-from lightrag.llm.openai import openai_complete_if_cache, openai_embed
-from lightrag.utils import EmbeddingFunc
+from src.lightrag import LightRAG, QueryParam
+from src.lightrag.kg.shared_storage import initialize_pipeline_status
+from src.lightrag.llm.openai import openai_complete_if_cache, openai_embed
+from src.lightrag.utils import EmbeddingFunc
 from neo4j import GraphDatabase
 from pymilvus import connections, utility
 
@@ -205,7 +205,7 @@ class LightRagKB(KnowledgeBase):
         logger.debug(f"Embedding config dict: {config_dict}")
 
         if config_dict.get("model_id") and config_dict["model_id"].startswith("ollama"):
-            from lightrag.llm.ollama import ollama_embed
+            from src.lightrag.llm.ollama import ollama_embed
 
             from src.utils import get_docker_safe_url
 
@@ -239,6 +239,82 @@ class LightRagKB(KnowledgeBase):
                 base_url=config_dict["base_url"].replace("/embeddings", ""),
             ),
         )
+
+    async def _sync_graph_to_neo4j(self, rag: LightRAG, db_id: str, file_id: str) -> None:
+        """
+        Sync LightRAG extracted graph to global Neo4j as Entity:Upload format.
+        This allows LightRAG-extracted entities and relations to appear in the
+        sidebar knowledge graph display alongside manually uploaded graphs.
+        Args:
+            rag: LightRAG instance
+            db_id: Database ID
+            file_id: File ID being processed
+        """
+        try:
+            # Import here to avoid circular import
+            from src.knowledge import graph_base
+
+            # Check if graph_base is available and running
+            if graph_base is None or not graph_base.is_running():
+                logger.debug("Graph database not available, skipping Neo4j sync")
+                return
+
+            # Get extracted graph from LightRAG
+            graph = await rag.get_knowledge_graph(node_label="*", max_depth=1, max_nodes=500)
+
+            if not hasattr(graph, "edges") or not graph.edges:
+                logger.info(f"No relations extracted for {file_id}, skipping Neo4j sync")
+                return
+
+            # Convert to triples format compatible with txt_add_vector_entity
+            # Format: {h: {name: ...}, t: {name: ...}, r: {type: ...}}
+            triples = []
+            
+            # Get entity name mapping from nodes
+            entity_name_map = {}
+            if hasattr(graph, "nodes"):
+                for node in graph.nodes:
+                    node_id = getattr(node, "id", None)
+                    node_properties = getattr(node, "properties", {}) or {}
+                    node_name = node_properties.get("entity_id")  # LightRAG stores entity name in entity_id property
+                    if node_id and node_name:
+                        entity_name_map[str(node_id)] = str(node_name)
+
+            for edge in graph.edges:
+                logger.debug(f"生成Edge: {edge}")
+                props = getattr(edge, "properties", {}) or {}
+                keywords = props.get("keywords", [])
+
+                # Use first keyword as relation type, or fallback to edge type
+                if isinstance(keywords, str):
+                    keywords = [k.strip() for k in keywords.split(",") if k.strip()]
+                rel_type = keywords[0] if keywords else getattr(edge, "type", "related")
+
+                source_id = getattr(edge, "source", "")
+                target_id = getattr(edge, "target", "")
+
+                if source_id and target_id and rel_type:
+                    # Use actual entity names instead of IDs if available
+                    source_name = entity_name_map.get(str(source_id), str(source_id))
+                    target_name = entity_name_map.get(str(target_id), str(target_id))
+                    
+                    triples.append(
+                        {
+                            "h": {"name": source_name, "source": f"lightrag:{db_id}"},
+                            "t": {"name": target_name, "source": f"lightrag:{db_id}"},
+                            "r": {"type": str(rel_type), "file_id": file_id, "db_id": db_id},
+                        }
+                    )
+
+            if triples:
+                await graph_base.txt_add_vector_entity(triples)
+                logger.info(f"Synced {len(triples)} relations from LightRAG to global Neo4j for {file_id}")
+            else:
+                logger.debug(f"No valid triples to sync for {file_id}")
+
+        except Exception as e:
+            # Don't fail the main insert if sync fails
+            logger.warning(f"Failed to sync LightRAG graph to Neo4j for {file_id}: {e}")
 
     async def add_content(self, db_id: str, items: list[str], params: dict | None = None) -> list[dict]:
         """添加内容（文件/URL）"""
@@ -279,6 +355,9 @@ class LightRagKB(KnowledgeBase):
 
                 # 使用 LightRAG 插入内容
                 await rag.ainsert(input=markdown_content, ids=file_id, file_paths=item_path)
+
+                # Sync extracted graph to global Neo4j (for sidebar display)
+                await self._sync_graph_to_neo4j(rag, db_id, file_id)
 
                 logger.info(f"Inserted {content_type} {item} into LightRAG. Done.")
 
@@ -353,6 +432,10 @@ class LightRagKB(KnowledgeBase):
                 await rag.ainsert(input=markdown_content, ids=file_id, file_paths=file_path)
 
                 logger.info(f"Updated {content_type} {file_path} in LightRAG. Done.")
+
+
+                # Sync extracted graph to global Neo4j (for sidebar display)
+                await self._sync_graph_to_neo4j(rag, db_id, file_id)
 
                 # 更新元数据状态
                 self.files_meta[file_id]["status"] = "done"

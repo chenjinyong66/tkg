@@ -71,7 +71,7 @@ class KnowledgeBaseManager:
                 with open(meta_file, encoding="utf-8") as f:
                     data = json.load(f)
                     self.global_databases_meta = data.get("databases", {})
-                logger.info(f"Loaded global metadata for {len(self.global_databases_meta)} databases")
+                logger.info(f"Loaded global metadata for {len(self.global_databases_meta)} databases from {meta_file}")
             except Exception as e:
                 logger.error(f"Failed to load global metadata: {e}")
                 # 尝试从备份恢复
@@ -152,6 +152,7 @@ class KnowledgeBaseManager:
                 self._get_or_create_kb_instance(kb_type)
             except Exception as e:
                 logger.error(f"Failed to initialize {kb_type} knowledge base: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")  # 添加详细错误信息
 
     def _get_or_create_kb_instance(self, kb_type: str) -> KnowledgeBase:
         """

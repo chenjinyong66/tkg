@@ -594,8 +594,8 @@ class UploadGraphService:
         def query_fuzzy_match(tx, keyword):
             result = tx.run(
                 """
-            MATCH (n:Upload)
-            WHERE toLower(n.name) CONTAINS toLower($keyword)
+            MATCH (n)
+            WHERE ('Upload' IN labels(n) OR 'Entity' IN labels(n)) AND toLower(n.name) CONTAINS toLower($keyword)
             RETURN DISTINCT n.name AS name
             """,
                 keyword=keyword,
@@ -632,7 +632,7 @@ class UploadGraphService:
                 """
             CALL db.index.vector.queryNodes('entityEmbeddings', 10, $embedding)
             YIELD node AS similarEntity, score
-            WHERE 'Upload' IN labels(similarEntity)
+            WHERE 'Upload' IN labels(similarEntity) OR 'Entity' IN labels(similarEntity)
             RETURN similarEntity.name AS name, score
             """,
                 embedding=embedding,
@@ -677,7 +677,7 @@ class UploadGraphService:
                      {h: {id: elementId(n), name: n.name, properties: properties(n)},
                       r: {
                         id: elementId(r1),
-                        type: r1.type,
+                        type: coalesce(r1.name, r1.type, 'RELATION'),
                         source_id: elementId(n),
                         target_id: elementId(m1),
                         properties: properties(r1)
@@ -688,7 +688,7 @@ class UploadGraphService:
                      {h: {id: elementId(m1), name: m1.name, properties: properties(m1)},
                       r: {
                         id: elementId(r2),
-                        type: r2.type,
+                        type: coalesce(r2.name, r2.type, 'RELATION'),
                         source_id: elementId(m1),
                         target_id: elementId(m2),
                         properties: properties(r2)
@@ -699,7 +699,7 @@ class UploadGraphService:
                      {h: {id: elementId(m1), name: m1.name, properties: properties(m1)},
                       r: {
                         id: elementId(r1),
-                        type: r1.type,
+                        type: coalesce(r1.name, r1.type, 'RELATION'),
                         source_id: elementId(m1),
                         target_id: elementId(n),
                         properties: properties(r1)
@@ -710,7 +710,7 @@ class UploadGraphService:
                      {h: {id: elementId(m2), name: m2.name, properties: properties(m2)},
                       r: {
                         id: elementId(r2),
-                        type: r2.type,
+                        type: coalesce(r2.name, r2.type, 'RELATION'),
                         source_id: elementId(m2),
                         target_id: elementId(m1),
                         properties: properties(r2)
