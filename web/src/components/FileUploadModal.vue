@@ -7,9 +7,7 @@
   >
     <template #footer>
       <div class="footer-container">
-        <a-button type="link" class="help-link-btn" @click="openDocLink">
-          <CircleHelp :size="14" /> 文档处理说明
-        </a-button>
+
         <div class="footer-buttons">
           <a-button key="back" @click="handleCancel">取消</a-button>
           <a-button
@@ -744,9 +742,6 @@ const getAuthHeaders = () => {
   return userStore.getAuthHeaders();
 };
 
-const openDocLink = () => {
-  window.open('https://xerrors.github.io/Yuxi-Know/latest/advanced/document-processing.html', '_blank', 'noopener');
-};
 
 const chunkData = async () => {
   if (!databaseId.value) {
