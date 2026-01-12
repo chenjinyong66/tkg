@@ -113,20 +113,15 @@ const mainList = [
       }
     ]*/
   },
+
   {
-    name: '人才搜索',
-    path: '/search',
-    icon: Search,
-    activeIcon: Search,
-  },
-  {
-    name: 'AI识人',
+    name: 'AI寻人',
     path: '/aisearch',
     icon: Search,
     activeIcon: Search,
   },
   {
-    name: '知识库',
+    name: '文档库',
     path: '/database',
     icon: Database,
     activeIcon: Database,
