@@ -18,15 +18,16 @@ from src.utils import hashstr, logger
 class LightRagKB(KnowledgeBase):
     """基于 LightRAG 的知识库实现"""
 
-    def __init__(self, work_dir: str, **kwargs):
+    def __init__(self, work_dir: str, db_config: dict = None, **kwargs):
         """
         初始化 LightRAG 知识库
 
         Args:
             work_dir: 工作目录
+            db_config: 数据库配置
             **kwargs: 其他配置参数
         """
-        super().__init__(work_dir)
+        super().__init__(work_dir, db_config)
 
         # 存储 LightRAG 实例映射 {db_id: LightRAG}
         self.instances: dict[str, LightRAG] = {}
@@ -96,6 +97,11 @@ class LightRagKB(KnowledgeBase):
         finally:
             if "driver" in locals():
                 driver.close()
+
+        # Delete database record from MySQL
+        success = self._kb_dao.delete_knowledge_base_sync(db_id)
+        if not success:
+            logger.error(f"Failed to delete database record for {db_id} from MySQL")
 
         # Delete local files and metadata
         return super().delete_database(db_id)
@@ -315,9 +321,10 @@ class LightRagKB(KnowledgeBase):
         except Exception as e:
             # Don't fail the main insert if sync fails
             logger.warning(f"Failed to sync LightRAG graph to Neo4j for {file_id}: {e}")
+            logger.debug(f"Error details: {traceback.format_exc()}")
 
     async def add_content(self, db_id: str, items: list[str], params: dict | None = None) -> list[dict]:
-        """添加内容（文件/URL）"""
+        """添加内容（文件/URL）- 现在使用数据库存储元数据"""
         if db_id not in self.databases_meta:
             raise ValueError(f"Database {db_id} not found")
 
@@ -333,11 +340,25 @@ class LightRagKB(KnowledgeBase):
             metadata = await prepare_item_metadata(item, content_type, db_id, params=params)
             file_id = metadata["file_id"]
             item_path = metadata["path"]
+            filename = metadata["filename"]
 
-            # 添加文件记录
-            file_record = metadata.copy()
-            self.files_meta[file_id] = file_record
-            self._save_metadata()
+            # 使用数据库存储文件记录
+            success = self._file_dao.create_file_sync(
+                file_id=file_id,
+                kb_id=db_id,
+                filename=filename,
+                path=item_path,
+                file_type=metadata.get("file_type", ""),
+                content_hash=metadata.get("content_hash"),
+                size=metadata.get("size", 0)
+            )
+
+            if not success:
+                logger.error(f"Failed to create file record for {file_id}")
+                continue
+
+            # 更新状态为处理中
+            self._file_dao.update_file_status_sync(file_id, "processing")
 
             self._add_to_processing_queue(file_id)
             try:
@@ -362,16 +383,15 @@ class LightRagKB(KnowledgeBase):
                 logger.info(f"Inserted {content_type} {item} into LightRAG. Done.")
 
                 # 更新状态为完成
-                self.files_meta[file_id]["status"] = "done"
-                self._save_metadata()
+                self._file_dao.update_file_status_sync(file_id, "done")
+                file_record = self._file_dao.get_file_by_id_sync(file_id)
                 file_record["status"] = "done"
 
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"处理{content_type} {item} 失败: {error_msg}, {traceback.format_exc()}")
-                self.files_meta[file_id]["status"] = "failed"
-                self.files_meta[file_id]["error"] = error_msg
-                self._save_metadata()
+                self._file_dao.update_file_status_sync(file_id, "failed", error_msg)
+                file_record = self._file_dao.get_file_by_id_sync(file_id)
                 file_record["status"] = "failed"
                 file_record["error"] = error_msg
             finally:
@@ -397,12 +417,12 @@ class LightRagKB(KnowledgeBase):
         processed_items_info = []
 
         for file_id in file_ids:
-            # 从元数据中获取文件信息
-            if file_id not in self.files_meta:
-                logger.warning(f"File {file_id} not found in metadata, skipping")
+            # 从数据库获取文件信息
+            file_meta = self._file_dao.get_file_by_id_sync(file_id)
+            if not file_meta:
+                logger.warning(f"File {file_id} not found in database, skipping")
                 continue
 
-            file_meta = self.files_meta[file_id]
             file_path = file_meta.get("path")
 
             if not file_path:
@@ -414,9 +434,9 @@ class LightRagKB(KnowledgeBase):
 
             try:
                 # 更新状态为处理中
-                self.files_meta[file_id]["processing_params"] = params.copy()
-                self.files_meta[file_id]["status"] = "processing"
-                self._save_metadata()
+                self._file_dao.update_file_status_sync(file_id, "processing")
+                file_meta["processing_params"] = params.copy()
+                file_meta["status"] = "processing"
 
                 # 重新解析文件为 markdown
                 if content_type != "file":
@@ -433,13 +453,11 @@ class LightRagKB(KnowledgeBase):
 
                 logger.info(f"Updated {content_type} {file_path} in LightRAG. Done.")
 
-
                 # Sync extracted graph to global Neo4j (for sidebar display)
                 await self._sync_graph_to_neo4j(rag, db_id, file_id)
 
-                # 更新元数据状态
-                self.files_meta[file_id]["status"] = "done"
-                self._save_metadata()
+                # 更新数据库状态
+                self._file_dao.update_file_status_sync(file_id, "done")
 
                 # 从处理队列中移除
                 self._remove_from_processing_queue(file_id)
@@ -453,9 +471,7 @@ class LightRagKB(KnowledgeBase):
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"更新{content_type} {file_path} 失败: {error_msg}, {traceback.format_exc()}")
-                self.files_meta[file_id]["status"] = "failed"
-                self.files_meta[file_id]["error"] = error_msg
-                self._save_metadata()
+                self._file_dao.update_file_status_sync(file_id, "failed", error_msg)
 
                 # 从处理队列中移除
                 self._remove_from_processing_queue(file_id)
@@ -536,20 +552,22 @@ class LightRagKB(KnowledgeBase):
         # 先删除 LightRAG 中的 chunks 数据
         await self.delete_file_chunks_only(db_id, file_id)
 
-        # 删除文件记录
-        if file_id in self.files_meta:
-            del self.files_meta[file_id]
-            self._save_metadata()
+        # 从数据库删除文件记录
+        success = self._file_dao.delete_file_sync(file_id)
+        if not success:
+            logger.error(f"Failed to delete file record {file_id} from database")
 
     async def get_file_basic_info(self, db_id: str, file_id: str) -> dict:
         """获取文件基本信息（仅元数据）"""
-        if file_id not in self.files_meta:
+        file_info = self._file_dao.get_file_basic_info_sync(file_id)
+        if not file_info:
             raise Exception(f"File not found: {file_id}")
 
-        return {"meta": self.files_meta[file_id]}
+        return {"meta": file_info}
 
     async def get_file_content(self, db_id: str, file_id: str) -> dict:
         """获取文件内容信息（chunks和lines）"""
+        # 使用数据库存储的文件内容信息
         if file_id not in self.files_meta:
             raise Exception(f"File not found: {file_id}")
 
@@ -577,20 +595,45 @@ class LightRagKB(KnowledgeBase):
                 # 按 chunk_order_index 排序
                 doc_chunks.sort(key=lambda x: x.get("chunk_order_index", 0))
                 content_info["lines"] = doc_chunks
+                
+                # 如果没有找到chunks，尝试从数据库中获取
+                if not content_info["lines"]:
+                    logger.info(f"No chunks found in LightRAG for {file_id}, trying database...")
+                    db_content = self._file_dao.get_file_content_sync(file_id)
+                    if db_content and "lines" in db_content:
+                        content_info["lines"] = db_content["lines"]
+                        logger.info(f"Retrieved {len(content_info['lines'])} lines from database for {file_id}")
+
                 return content_info
 
             except Exception as e:
                 logger.error(f"Failed to get file content from LightRAG: {e}")
-                content_info["lines"] = []
+                logger.debug(f"Error details: {traceback.format_exc()}")
+                
+                # 尝试从数据库获取内容作为后备方案
+                try:
+                    db_content = self._file_dao.get_file_content_sync(file_id)
+                    if db_content and "lines" in db_content:
+                        content_info["lines"] = db_content["lines"]
+                        logger.info(f"Retrieved {len(content_info['lines'])} lines from database as fallback for {file_id}")
+                except Exception as db_error:
+                    logger.error(f"Failed to get file content from database as fallback: {db_error}")
+                
                 return content_info
 
+        # 如果无法获取LightRAG实例，尝试从数据库获取
+        try:
+            db_content = self._file_dao.get_file_content_sync(file_id)
+            if db_content and "lines" in db_content:
+                content_info["lines"] = db_content["lines"]
+                logger.info(f"Retrieved {len(content_info['lines'])} lines from database as fallback for {file_id}")
+        except Exception as db_error:
+            logger.error(f"Failed to get file content from database as fallback: {db_error}")
+        
         return content_info
 
     async def get_file_info(self, db_id: str, file_id: str) -> dict:
         """获取文件完整信息（基本信息+内容信息）- 保持向后兼容"""
-        if file_id not in self.files_meta:
-            raise Exception(f"File not found: {file_id}")
-
         # 合并基本信息和内容信息
         basic_info = await self.get_file_basic_info(db_id, file_id)
         content_info = await self.get_file_content(db_id, file_id)
@@ -606,30 +649,3 @@ class LightRagKB(KnowledgeBase):
         # 当前调用 aexport_data 会导致 "'MilvusVectorDBStorage' object has no attribute 'client_storage'" 错误。
         # 在 lightrag 库修复此问题前，暂时禁用此功能。
         raise NotImplementedError("由于 LightRAG 库与 Milvus 后端不兼容，原生导出功能暂不可用。等待上游库修复。")
-
-        # --- 以下为待修复后启用的代码 ---
-        # logger.info(f"Exporting data for db_id {db_id} in format {format} with options {kwargs}")
-
-        # rag = await self._get_lightrag_instance(db_id)
-        # if not rag:
-        #     raise ValueError(f"Failed to get LightRAG instance for {db_id}")
-
-        # export_dir = os.path.join(self.work_dir, db_id, "exports")
-        # os.makedirs(export_dir, exist_ok=True)
-
-        # timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        # output_filename = f"export_{db_id}_{timestamp}.{format}"
-        # output_filepath = os.path.join(export_dir, output_filename)
-
-        # include_vectors = kwargs.get('include_vectors', False)
-
-        # # 直接调用 lightrag 的异步导出功能
-        # # 之前的测试表明 aexport_data 确实存在，并且 to_thread 会导致 loop 问题
-        # await rag.aexport_data(
-        #     output_path=output_filepath,
-        #     file_format=format,
-        #     include_vector_data=include_vectors
-        # )
-
-        # logger.info(f"Successfully created export file: {output_filepath}")
-        # return output_filepath
