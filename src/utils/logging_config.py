@@ -48,7 +48,7 @@ def setup_logger(name, level="DEBUG", console=True):
 
 
 # 设置根日志记录器
-logger = setup_logger("Yuxi")
+logger = setup_logger("Talent")
 
 __all__ = ["logger"]
 
