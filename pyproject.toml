@@ -64,7 +64,18 @@ dependencies = [
     "deepagents>=0.2.5",
     "json-repair>=0.54.0",
     "openpyxl>=3.1.5",
+    # 添加对MySQL和PostgreSQL的支持
+    "aiomysql>=0.2.0",
+    "asyncpg>=0.30.0",
+    "pydantic>=2.11.5",
+    "diskcache>=5.6.3",
+    "tenacity>=9.0.0",
+    "numpy>=1.0.0",
+    "python-dotenv>=1.0.1",
+    "posthog>=3.0.0"
+
 ]
+
 [tool.ruff]
 line-length = 120  # 代码最大行宽
 lint.select = [         # 选择的规则
