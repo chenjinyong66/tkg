@@ -1,8 +1,9 @@
 import datetime as dt
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
+
 
 from src.utils.datetime_utils import coerce_datetime, utc_isoformat, utc_now
 
@@ -348,3 +349,103 @@ class MessageFeedback(Base):
             "reason": self.reason,
             "created_at": format_utc_datetime(self.created_at),
         }
+
+
+
+# class Talent(Base):
+#     """人才信息表"""
+#     __tablename__ = 'talents'
+#
+#     id = Column(String(32), primary_key=True, comment='人才ID')
+#     name = Column(String(50), nullable=True, comment='姓名')
+#     gender = Column(String(10), nullable=True, comment='性别')
+#     age = Column(Integer, nullable=True, comment='年龄')
+#     phone = Column(String(20), nullable=True, unique=True, comment='手机号')
+#     email = Column(String(100), nullable=True, unique=True, comment='邮箱')
+#     location = Column(String(100), nullable=True, comment='现居地')
+#
+#     # 教育信息
+#     education = Column(String(50), nullable=True, comment='最高学历')
+#     school = Column(String(100), nullable=True, comment='毕业院校')
+#     major = Column(String(100), nullable=True, comment='专业')
+#     graduation_date = Column(String(20), nullable=True, comment='毕业时间')
+#
+#     # 工作信息
+#     work_years = Column(Integer, nullable=True, comment='工作年限')
+#     current_position = Column(String(100), nullable=True, comment='当前职位')
+#     current_company = Column(String(100), nullable=True, comment='当前公司')
+#     expected_salary = Column(String(50), nullable=True, comment='期望薪资')
+#
+#     # 技能和证书（JSON格式存储）
+#     skills = Column(JSON, nullable=True, comment='技能列表')
+#     certificates = Column(JSON, nullable=True, comment='证书列表')
+#     work_experience = Column(JSON, nullable=True, comment='工作经历')
+#
+#     # 文件来源
+#     source_files = Column(Text, nullable=True, comment='来源文件')
+#     content_hash = Column(String(64), nullable=True, comment='内容哈希')
+#
+#     # 状态
+#     status = Column(String(20), default='active', comment='状态: active/inactive')
+#     is_verified = Column(Boolean, default=False, comment='是否已验证')
+#
+#     # 时间戳
+#     created_at = Column(DateTime, default=datetime.now, comment='创建时间')
+#     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+#
+#     # 关系
+#     files = relationship('TalentFile', back_populates='talent')
+#     upload_logs = relationship('TalentUploadLog', back_populates='talent')
+#
+# class TalentUploadLog(Base):
+#     """人才上传日志表"""
+#     __tablename__ = 'talent_upload_logs'
+#
+#     id = Column(Integer, primary_key=True, autoincrement=True, comment='日志ID')
+#     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, comment='用户ID')
+#     db_id = Column(String(50), nullable=False, comment='数据库ID')
+#
+#     # 上传统计
+#     file_count = Column(Integer, default=0, comment='文件数量')
+#     success_count = Column(Integer, default=0, comment='成功数量')
+#     failed_count = Column(Integer, default=0, comment='失败数量')
+#
+#     # 状态
+#     status = Column(String(20), default='processing', comment='状态: processing/completed/failed')
+#     error_message = Column(Text, nullable=True, comment='错误信息')
+#
+#     # 时间戳
+#     created_at = Column(DateTime, default=datetime.now, comment='创建时间')
+#     completed_at = Column(DateTime, nullable=True, comment='完成时间')
+#
+#     # 关系
+#     user = relationship('User', back_populates='talent_upload_logs')
+#     talent = relationship('Talent', back_populates='upload_logs')
+#
+# class TalentFile(Base):
+#     """人才文件表"""
+#     __tablename__ = 'talent_files'
+#
+#     id = Column(Integer, primary_key=True, autoincrement=True, comment='文件ID')
+#     talent_id = Column(String(32), ForeignKey('talents.id'), nullable=False, comment='人才ID')
+#
+#     # 文件信息
+#     file_name = Column(String(255), nullable=False, comment='文件名')
+#     file_path = Column(String(500), nullable=False, comment='文件路径')
+#     file_size = Column(Integer, nullable=False, comment='文件大小(字节)')
+#     mime_type = Column(String(100), nullable=True, comment='MIME类型')
+#
+#     # 存储信息
+#     storage_type = Column(String(20), default='local', comment='存储类型: local/oss/s3')
+#     storage_key = Column(String(500), nullable=True, comment='存储键')
+#
+#     # 提取信息
+#     extracted_text = Column(Text, nullable=True, comment='提取的文本内容')
+#     parse_status = Column(String(20), default='pending', comment='解析状态')
+#     parse_result = Column(JSON, nullable=True, comment='解析结果')
+#
+#     # 时间戳
+#     created_at = Column(DateTime, default=datetime.now, comment='创建时间')
+#
+#     # 关系
+#     talent = relationship('Talent', back_populates='files')

@@ -27,26 +27,90 @@ class DBManager(metaclass=SingletonMeta):
     """数据库管理器 - 提供异步数据库连接和会话管理"""
 
     def __init__(self):
-        self.db_path = os.path.join(config.save_dir, "database", "server.db")
-        self.ensure_db_dir()
+        # 从环境变量获取数据库类型
+        self.db_type = os.getenv("DB_TYPE", "sqlite")  # 默认为sqlite，可选mysql, postgresql等
 
-        # 创建异步SQLAlchemy引擎，配置JSON序列化器以支持中文
-        # 使用 ensure_ascii=False 确保中文字符不被转义为 Unicode 序列
-        self.async_engine = create_async_engine(
-            f"sqlite+aiosqlite:///{self.db_path}",
-            json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
-            json_deserializer=json.loads,
-        )
+        if self.db_type == "sqlite":
+            self.db_path = os.path.join(config.save_dir, "database", "server.db")
+            self.ensure_db_dir()
+            # 创建异步SQLAlchemy引擎，配置JSON序列化器以支持中文
+            # 使用 ensure_ascii=False 确保中文字符不被转义为 Unicode 序列
+            self.async_engine = create_async_engine(
+                f"sqlite+aiosqlite:///{self.db_path}",
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+                json_deserializer=json.loads,
+            )
 
-        # 创建异步会话工厂
-        self.AsyncSession = async_sessionmaker(bind=self.async_engine, class_=AsyncSession, expire_on_commit=False)
+            # 创建异步会话工厂
+            self.AsyncSession = async_sessionmaker(bind=self.async_engine, class_=AsyncSession, expire_on_commit=False)
 
-        # 保留同步引擎用于迁移等特殊操作
-        self.engine = create_engine(
-            f"sqlite:///{self.db_path}",
-            json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
-            json_deserializer=json.loads,
-        )
+            # 保留同步引擎用于迁移等特殊操作
+            self.engine = create_engine(
+                f"sqlite:///{self.db_path}",
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+                json_deserializer=json.loads,
+            )
+        elif self.db_type == "mysql":
+            mysql_host = os.getenv("MYSQL_HOST", "localhost")
+            mysql_port = os.getenv("MYSQL_PORT", "3306")
+            mysql_user = os.getenv("MYSQL_USER", "root")
+            mysql_password = os.getenv("MYSQL_PASSWORD", "")
+            mysql_db = os.getenv("MYSQL_DATABASE", "yuxi_know")
+            # 创建异步SQLAlchemy引擎，配置JSON序列化器以支持中文
+            # 使用 ensure_ascii=False 确保中文字符不被转义为 Unicode 序列
+            connection_string = f"mysql+aiomysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}"
+            self.async_engine = create_async_engine(
+                connection_string,
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+                json_deserializer=json.loads,
+                pool_pre_ping=True,
+                pool_recycle=300,
+            )
+
+            # 创建异步会话工厂
+            self.AsyncSession = async_sessionmaker(bind=self.async_engine, class_=AsyncSession, expire_on_commit=False)
+
+            # 保留同步引擎用于迁移等特殊操作
+            sync_connection_string = f"mysql+pymysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_db}"
+            self.engine = create_engine(
+                sync_connection_string,
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+                json_deserializer=json.loads,
+                pool_pre_ping=True,
+                pool_recycle=300,
+            )
+        elif self.db_type == "postgresql":
+            pg_host = os.getenv("POSTGRES_HOST", "localhost")
+            pg_port = os.getenv("POSTGRES_PORT", "5432")
+            pg_user = os.getenv("POSTGRES_USER", "postgres")
+            pg_password = os.getenv("POSTGRES_PASSWORD", "")
+            pg_db = os.getenv("POSTGRES_DATABASE", "yuxi_know")
+            # 创建异步SQLAlchemy引擎，配置JSON序列化器以支持中文
+            # 使用 ensure_ascii=False 确保中文字符不被转义为 Unicode 序列
+            connection_string = f"postgresql+asyncpg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+            self.async_engine = create_async_engine(
+                connection_string,
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+                json_deserializer=json.loads,
+                pool_pre_ping=True,
+                pool_recycle=300,
+            )
+
+            # 创建异步会话工厂
+            self.AsyncSession = async_sessionmaker(bind=self.async_engine, class_=AsyncSession, expire_on_commit=False)
+
+            # 保留同步引擎用于迁移等特殊操作
+            sync_connection_string = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+            self.engine = create_engine(
+                sync_connection_string,
+                json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False),
+                json_deserializer=json.loads,
+                pool_pre_ping=True,
+                pool_recycle=300,
+            )
+        else:
+            raise ValueError(f"Unsupported database type: {self.db_type}")
+
         self.Session = sessionmaker(bind=self.engine)
 
         # 首先创建基本表结构
@@ -57,8 +121,9 @@ class DBManager(metaclass=SingletonMeta):
 
     def ensure_db_dir(self):
         """确保数据库目录存在"""
-        db_dir = os.path.dirname(self.db_path)
-        pathlib.Path(db_dir).mkdir(parents=True, exist_ok=True)
+        if self.db_type == "sqlite":
+            db_dir = os.path.dirname(self.db_path)
+            pathlib.Path(db_dir).mkdir(parents=True, exist_ok=True)
 
     def create_tables(self):
         """创建数据库表"""
@@ -68,11 +133,11 @@ class DBManager(metaclass=SingletonMeta):
 
     def run_migrations(self):
         """运行数据库迁移"""
-        if not os.path.exists(self.db_path):
+        if self.db_type == "sqlite" and not os.path.exists(self.db_path):
             return
 
         if DatabaseMigrator is not None:
-            migrator = DatabaseMigrator(self.db_path)
+            migrator = DatabaseMigrator(self.db_path if self.db_type == "sqlite" else None)
             try:
                 migrator.run_migrations()
             except Exception as exc:
@@ -80,17 +145,18 @@ class DBManager(metaclass=SingletonMeta):
         else:
             logger.warning("数据库迁移工具缺失，无法自动执行迁移")
 
-        is_valid, issues = validate_database_schema(self.db_path)
+        if self.db_type == "sqlite":
+            is_valid, issues = validate_database_schema(self.db_path)
 
-        if not is_valid:
-            logger.warning("=" * 60)
-            logger.warning("检测到数据库结构与当前模型不一致！")
-            logger.warning("=" * 60)
-            for issue in issues:
-                logger.warning(f"  ⚠️  {issue}")
-            logger.warning("")
-            logger.warning("请运行 scripts/migrate_user_soft_delete.py 手动修复数据库结构")
-            logger.warning("=" * 60)
+            if not is_valid:
+                logger.warning("=" * 60)
+                logger.warning("检测到数据库结构与当前模型不一致！")
+                logger.warning("=" * 60)
+                for issue in issues:
+                    logger.warning(f"  ⚠️  {issue}")
+                logger.warning("")
+                logger.warning("请运行 scripts/migrate_user_soft_delete.py 手动修复数据库结构")
+                logger.warning("=" * 60)
 
     def get_session(self):
         """获取同步数据库会话"""
