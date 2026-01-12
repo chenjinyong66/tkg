@@ -332,8 +332,9 @@ async def add_documents(
         return summary | {"items": processed_items}
 
     try:
+        database = knowledge_base.get_database_info(db_id)
         task = await tasker.enqueue(
-            name=f"知识库文档处理({db_id})",
+            name=f"知识库文档处理 ({database['name']})",
             task_type="knowledge_ingest",
             payload={
                 "db_id": db_id,
@@ -360,6 +361,7 @@ async def get_document_info(db_id: str, doc_id: str, current_user: User = Depend
 
     try:
         info = await knowledge_base.get_file_info(db_id, doc_id)
+        logger.debug(f"获取 File info: {info}")
         return info
     except Exception as e:
         logger.error(f"Failed to get file info, {e}, {db_id=}, {doc_id=}, {traceback.format_exc()}")
