@@ -1,5 +1,5 @@
 {
-  "name": "yuxi-know-web",
+  "name": "talent-know-web",
   "version": "0.4.0.web",
   "private": true,
   "scripts": {
@@ -33,6 +33,7 @@
     "markmap-view": "^0.18.12",
     "md-editor-v3": "^5.8.4",
     "pinia": "^3.0.3",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "pnpm": "^10.24.0",
     "sigma": "^3.0.2",
     "vue": "^3.5.21",
