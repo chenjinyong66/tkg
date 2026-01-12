@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import uuid
+from datetime import datetime
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -314,10 +315,20 @@ class Tasker:
         payload = {"tasks": tasks, "updated_at": _utc_timestamp()}
 
         def _write() -> None:
+            def json_serializer(obj):
+                """Custom serializer for objects not serializable by default json code"""
+                if isinstance(obj, datetime):
+                    return obj.isoformat()
+                if isinstance(obj, set):
+                    return list(obj)
+                if hasattr(obj, 'isoformat'):  # For other datetime-like objects
+                    return obj.isoformat()
+                raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+            
             self._storage_path.parent.mkdir(parents=True, exist_ok=True)
             tmp_path = self._storage_path.with_suffix(".tmp")
             with open(tmp_path, "w", encoding="utf-8") as fh:
-                json.dump(payload, fh, ensure_ascii=False, indent=2)
+                json.dump(payload, fh, ensure_ascii=False, indent=2, default=json_serializer)
             os.replace(tmp_path, self._storage_path)
 
         await asyncio.to_thread(_write)
