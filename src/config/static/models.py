@@ -45,6 +45,14 @@ class RerankerInfo(BaseModel):
 # ============================================================
 
 DEFAULT_CHAT_MODEL_PROVIDERS: dict[str, ChatModelProvider] = {
+    "lmstudio": ChatModelProvider(
+        name="qwen/qwen3-1.7b",
+        url="http://192.168.1.8:1034/v1",
+        base_url="http://192.168.1.8:1034/v1",
+        default="qwen/qwen3-1.7b",
+        env="qwen/qwen3-1.7b",
+        models=["qwen/qwen3-1.7b"],
+    ),
     "openai": ChatModelProvider(
         name="OpenAI",
         url="https://platform.openai.com/docs/models",
@@ -158,6 +166,13 @@ DEFAULT_CHAT_MODEL_PROVIDERS: dict[str, ChatModelProvider] = {
 # ============================================================
 
 DEFAULT_EMBED_MODELS: dict[str, EmbedModelInfo] = {
+    "lmstudio/text-embedding-bge-m3": EmbedModelInfo(
+        model_id="lmstudio/text-embedding-bge-m3",
+        name="text-embedding-bge-m3",
+        dimension=1024,
+        base_url="http://192.168.1.8:1034/v1/embeddings",
+        api_key="text-embedding-bge-m3",
+    ),
     "siliconflow/BAAI/bge-m3": EmbedModelInfo(
         model_id="siliconflow/BAAI/bge-m3",
         name="BAAI/bge-m3",
@@ -215,6 +230,11 @@ DEFAULT_EMBED_MODELS: dict[str, EmbedModelInfo] = {
 # ============================================================
 
 DEFAULT_RERANKERS: dict[str, RerankerInfo] = {
+    "lmstudio/qwen3-reranker-0.6b": RerankerInfo(
+        name="qwen3-reranker-0.6b",
+        base_url="http://192.168.1.8:1034/v1/rerank",
+        api_key="qwen3-reranker-0.6b",
+    ),
     "siliconflow/BAAI/bge-reranker-v2-m3": RerankerInfo(
         name="BAAI/bge-reranker-v2-m3",
         base_url="https://api.siliconflow.cn/v1/rerank",
