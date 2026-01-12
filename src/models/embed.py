@@ -50,13 +50,15 @@ class BaseEmbeddingModel(ABC):
         # logger.info(f"Batch encoding {len(messages)} messages")
         data = []
         task_id = None
-        if len(messages) > batch_size:
+        # 确保 batch_size 不为 None
+        actual_batch_size = batch_size or 40
+        if len(messages) > actual_batch_size:
             task_id = hashstr(messages)
             self.embed_state[task_id] = {"status": "in-progress", "total": len(messages), "progress": 0}
 
-        for i in range(0, len(messages), batch_size):
-            group_msg = messages[i : i + batch_size]
-            logger.info(f"Encoding [{i}/{len(messages)}] messages (bsz={batch_size})")
+        for i in range(0, len(messages), actual_batch_size):
+            group_msg = messages[i : i + actual_batch_size]
+            logger.info(f"Encoding [{i}/{len(messages)}] messages (bsz={actual_batch_size})")
             response = self.encode(group_msg)
             data.extend(response)
             if task_id:
