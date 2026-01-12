@@ -13,7 +13,15 @@ KnowledgeBaseFactory.register("lightrag", LightRagKB, {"description": "基于图
 
 # 创建知识库管理器
 work_dir = os.path.join(config.save_dir, "knowledge_base_data")
-knowledge_base = KnowledgeBaseManager(work_dir)
+# 从环境变量或配置中获取数据库配置
+db_config = {
+    "host": os.getenv("MYSQL_HOST", config.mysql_host),
+    "port": int(os.getenv("MYSQL_PORT", config.mysql_port)),
+    "user": os.getenv("MYSQL_USER", config.mysql_user),
+    "password": os.getenv("MYSQL_PASSWORD", config.mysql_password),
+    "database": os.getenv("MYSQL_DATABASE", config.mysql_database)
+}
+knowledge_base = KnowledgeBaseManager(work_dir, db_config=db_config)
 
 # 创建图数据库实例
 graph_base = UploadGraphService()

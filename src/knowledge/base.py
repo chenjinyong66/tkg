@@ -1,10 +1,10 @@
-import json
 import os
-import shutil
-import tempfile
 from abc import ABC, abstractmethod
 from typing import Any
 
+from src.knowledge.db.connection import KnowledgeBaseDB
+from src.knowledge.db.file_operations import FileDAO
+from src.knowledge.db.kb_operations import KnowledgeBaseDAO
 from src.utils import logger
 from src.utils.datetime_utils import coerce_any_to_utc_datetime, utc_isoformat
 
@@ -34,19 +34,28 @@ class KnowledgeBase(ABC):
     _processing_files = set()
     _processing_lock = None
 
-    def __init__(self, work_dir: str):
+    # 全局数据库连接
+    _db_instance = None
+    _kb_dao = None
+    _file_dao = None
+
+    def __init__(self, work_dir: str, db_config: dict = None):
         """
         初始化知识库
 
         Args:
             work_dir: 工作目录
+            db_config: 数据库配置
         """
         import threading
 
         self.work_dir = work_dir
-        self.databases_meta: dict[str, dict] = {}
-        self.files_meta: dict[str, dict] = {}
-        self.benchmarks_meta: dict[str, dict] = {}
+        logger.info(f"Initializing knowledge base 用配置: {db_config}")
+        # 初始化数据库连接
+        if db_config and KnowledgeBase._db_instance is None:
+            KnowledgeBase._db_instance = KnowledgeBaseDB(**db_config)
+            KnowledgeBase._kb_dao = KnowledgeBaseDAO(KnowledgeBase._db_instance)
+            KnowledgeBase._file_dao = FileDAO(KnowledgeBase._db_instance)
 
         # 初始化类级别的锁
         if KnowledgeBase._processing_lock is None:
@@ -54,9 +63,8 @@ class KnowledgeBase(ABC):
 
         os.makedirs(work_dir, exist_ok=True)
 
-        # 自动加载元数据
-        self._load_metadata()
-        self._normalize_metadata_state()
+        # 从数据库加载元数据
+        self._load_metadata_from_db()
 
     @staticmethod
     def _normalize_timestamp(value: Any) -> str | None:
@@ -126,7 +134,7 @@ class KnowledgeBase(ABC):
         """
         pass
 
-    def create_database(
+    async def create_database(
         self,
         database_name: str,
         description: str,
@@ -135,68 +143,84 @@ class KnowledgeBase(ABC):
         **kwargs,
     ) -> dict:
         """
-        创建数据库
-
-        Args:
-            database_name: 数据库名称
-            description: 数据库描述
-            embed_info: 嵌入模型信息
-            **kwargs: 其他配置参数
-
-        Returns:
-            数据库信息字典
+        创建数据库 - 现在使用数据库存储
         """
         from src.utils import hashstr
+        import json
 
         # 从 kwargs 中获取 is_private 配置
         is_private = kwargs.get("is_private", False)
         prefix = "kb_private_" if is_private else "kb_"
         db_id = f"{prefix}{hashstr(database_name, with_salt=True)}"
 
-        # 创建数据库记录
-        # 确保 Pydantic 模型被转换为字典，以便 JSON 序列化
-        embed_info_dump = embed_info.model_dump() if hasattr(embed_info, "model_dump") else embed_info
-        self.databases_meta[db_id] = {
-            "name": database_name,
-            "description": description,
-            "kb_type": self.kb_type,
-            "embed_info": embed_info_dump,
-            "llm_info": llm_info.model_dump() if hasattr(llm_info, "model_dump") else llm_info,
-            "metadata": kwargs,
-            "created_at": utc_isoformat(),
-        }
-        self._save_metadata()
+        # 处理 embed_info，确保它是可序列化的字典
+        processed_embed_info = embed_info
+        if embed_info:
+            if hasattr(embed_info, 'dict'):  # 如果是 Pydantic v1 模型
+                processed_embed_info = embed_info.dict() if callable(getattr(embed_info, 'dict')) else {k: v for k, v in embed_info.__dict__.items()}
+            elif hasattr(embed_info, 'model_dump'):  # 如果是 Pydantic v2 模型
+                processed_embed_info = embed_info.model_dump()
+            elif not isinstance(embed_info, dict):  # 如果不是字典也不是模型，尝试转换
+                try:
+                    processed_embed_info = json.loads(json.dumps(embed_info))
+                except (TypeError, ValueError):
+                    processed_embed_info = str(embed_info)  # 最后手段，转换为字符串
 
-        # 创建工作目录
-        working_dir = os.path.join(self.work_dir, db_id)
-        os.makedirs(working_dir, exist_ok=True)
+        # 使用数据库存储
+        if KnowledgeBase._kb_dao is None:
+            # 如果没有数据库连接，使用旧的文件存储方式
+            logger.warning("No database connection, using file-based storage")
+            
+            # 创建工作目录
+            working_dir = os.path.join(self.work_dir, db_id)
+            os.makedirs(working_dir, exist_ok=True)
+            
+            # 返回模拟的数据库信息
+            db_info = {
+                "id": db_id,
+                "name": database_name,
+                "description": description,
+                "kb_type": self.kb_type,
+                "embed_info": processed_embed_info,
+                "llm_info": llm_info,
+                "metadata": kwargs,
+                "created_at": self._normalize_timestamp("now"),
+                "updated_at": self._normalize_timestamp("now")
+            }
+            db_info["db_id"] = db_id
+            db_info["files"] = {}
+            
+            # 同时更新内存中的元数据
+            self.databases_meta[db_id] = db_info
+            
+            return db_info
+        else:
+            success = await KnowledgeBase._kb_dao.create_knowledge_base(
+                db_id, database_name, description, self.kb_type, 
+                processed_embed_info, llm_info, kwargs
+            )
+            
+            if not success:
+                raise Exception(f"Failed to create knowledge base {db_id}")
 
-        # 返回数据库信息
-        db_dict = self.databases_meta[db_id].copy()
-        db_dict["db_id"] = db_id
-        db_dict["files"] = {}
+            # 创建工作目录
+            working_dir = os.path.join(self.work_dir, db_id)
+            os.makedirs(working_dir, exist_ok=True)
 
-        return db_dict
+            # 返回数据库信息
+            db_info = await KnowledgeBase._kb_dao.get_knowledge_base(db_id)
+            db_info["db_id"] = db_id
+            db_info["files"] = {}
+
+            return db_info
 
     def delete_database(self, db_id: str) -> dict:
         """
-        删除数据库
-
-        Args:
-            db_id: 数据库ID
-
-        Returns:
-            操作结果
+        删除数据库 - 从数据库删除
         """
-        if db_id in self.databases_meta:
-            # 删除相关文件记录
-            files_to_delete = [fid for fid, finfo in self.files_meta.items() if finfo.get("database_id") == db_id]
-            for file_id in files_to_delete:
-                del self.files_meta[file_id]
-
-            # 删除数据库记录
-            del self.databases_meta[db_id]
-            self._save_metadata()
+        success = self._kb_dao.delete_knowledge_base_sync(db_id)
+        if not success:
+            raise Exception(f"Failed to delete knowledge base {db_id}")
 
         # 删除工作目录
         working_dir = os.path.join(self.work_dir, db_id)
@@ -216,19 +240,31 @@ class KnowledgeBase(ABC):
 
         folder_id = f"folder-{uuid.uuid4()}"
 
-        self.files_meta[folder_id] = {
-            "file_id": folder_id,
-            "filename": folder_name,
-            "is_folder": True,
-            "parent_id": parent_id,
-            "database_id": db_id,
-            "created_at": utc_isoformat(),
-            "status": "done",
-            "path": folder_name,
-            "file_type": "folder",
-        }
-        self._save_metadata()
-        return self.files_meta[folder_id]
+        if KnowledgeBase._file_dao:
+            # 使用数据库存储文件夹信息
+            success = KnowledgeBase._file_dao.create_file_sync(
+                file_id=folder_id,
+                kb_id=db_id,
+                filename=folder_name,
+                is_folder=True,
+                parent_id=parent_id
+            )
+            
+            if not success:
+                raise Exception(f"Failed to create folder {folder_name}")
+
+            file_info = KnowledgeBase._file_dao.get_file_by_id_sync(folder_id)
+            return file_info
+        else:
+            # 如果没有数据库连接，返回模拟的文件信息
+            logger.warning("No database connection, using mock folder creation")
+            return {
+                "id": folder_id,
+                "filename": folder_name,
+                "is_folder": True,
+                "parent_id": parent_id,
+                "status": "created"
+            }
 
     @abstractmethod
     async def add_content(self, db_id: str, items: list[str], params: dict | None = None) -> list[dict]:
@@ -293,7 +329,17 @@ class KnowledgeBase(ABC):
         import asyncio
 
         logger.warning("query is deprecated, use aquery instead")
-        return asyncio.run(self.aquery(query_text, db_id, **kwargs))
+        try:
+            # 尝试在事件循环中使用 run_coroutine_threadsafe
+            loop = asyncio.get_running_loop()
+            future = asyncio.run_coroutine_threadsafe(
+                self.aquery(query_text, db_id, **kwargs),
+                loop
+            )
+            return future.result(timeout=30)  # 添加超时以避免无限等待
+        except RuntimeError:
+            # 如果没有运行的事件循环，则使用 asyncio.run
+            return asyncio.run(self.aquery(query_text, db_id, **kwargs))
 
     def get_database_info(self, db_id: str) -> dict | None:
         """
@@ -305,45 +351,75 @@ class KnowledgeBase(ABC):
         Returns:
             数据库信息或None
         """
-        if db_id not in self.databases_meta:
-            return None
-
-        meta = self.databases_meta[db_id].copy()
-        meta["db_id"] = db_id
-
-        # 检查并修复异常的processing状态
-        self._check_and_fix_processing_status(db_id)
-
-        # 获取文件信息
-        db_files = {}
-        for file_id, file_info in self.files_meta.items():
-            if file_info.get("database_id") == db_id:
-                created_at = self._normalize_timestamp(file_info.get("created_at"))
-                db_files[file_id] = {
-                    "file_id": file_id,
-                    "filename": file_info.get("filename", ""),
-                    "path": file_info.get("path", ""),
-                    "type": file_info.get("file_type", ""),
-                    "status": file_info.get("status", "done"),
-                    "created_at": created_at,
-                    "processing_params": file_info.get("processing_params", None),
-                    "is_folder": file_info.get("is_folder", False),
-                    "parent_id": file_info.get("parent_id", None),
-                }
-
-        # 按创建时间倒序排序文件列表
-        sorted_files = dict(
-            sorted(
-                db_files.items(),
-                key=lambda item: item[1].get("created_at") or "",
-                reverse=True,
+        if KnowledgeBase._kb_dao is None or KnowledgeBase._file_dao is None:
+            # 如果没有数据库连接，使用内存中的元数据
+            logger.warning("No database connection, using in-memory metadata")
+            
+            if db_id not in self.databases_meta:
+                return None
+            
+            db_info = self.databases_meta[db_id].copy()
+            db_info["db_id"] = db_id
+            
+            # 获取该数据库的文件信息
+            db_files = {}
+            for file_id, file_info in self.files_meta.items():
+                if file_info.get("database_id") == db_id:
+                    file_copy = file_info.copy()
+                    file_copy["file_id"] = file_id
+                    file_copy["file_type"] = file_info.get("file_type", "")
+                    file_copy["status"] = file_info.get("status", "done")
+                    file_copy["is_folder"] = file_info.get("is_folder", False)
+                    file_copy["parent_id"] = file_info.get("parent_id", None)
+                    db_files[file_id] = file_copy
+            
+            # 按创建时间倒序排序文件列表
+            sorted_files = dict(
+                sorted(
+                    db_files.items(),
+                    key=lambda item: item[1].get("created_at") or "",
+                    reverse=True,
+                )
             )
-        )
+            
+            db_info["files"] = sorted_files
+            db_info["row_count"] = len(sorted_files)
+            db_info["status"] = "已连接"
+            return db_info
+        else:
+            db_info = KnowledgeBase._kb_dao.get_knowledge_base_sync(db_id)
+            if not db_info:
+                return None
 
-        meta["files"] = sorted_files
-        meta["row_count"] = len(sorted_files)
-        meta["status"] = "已连接"
-        return meta
+            db_info["db_id"] = db_id
+
+            # 检查并修复异常的processing状态
+            self._check_and_fix_processing_status(db_id)
+
+            # 获取文件信息
+            files = KnowledgeBase._file_dao.get_files_by_kb_id_sync(db_id)
+            db_files = {}
+            for file_info in files:
+                file_info["file_id"] = file_info["id"]
+                file_info["file_type"] = file_info.get("file_type", "")
+                file_info["status"] = file_info.get("status", "done")
+                file_info["is_folder"] = file_info.get("is_folder", False)
+                file_info["parent_id"] = file_info.get("parent_id", None)
+                db_files[file_info["id"]] = file_info
+
+            # 按创建时间倒序排序文件列表
+            sorted_files = dict(
+                sorted(
+                    db_files.items(),
+                    key=lambda item: item[1].get("created_at") or "",
+                    reverse=True,
+                )
+            )
+
+            db_info["files"] = sorted_files
+            db_info["row_count"] = len(sorted_files)
+            db_info["status"] = "已连接"
+            return db_info
 
     def get_databases(self) -> dict:
         """
@@ -352,29 +428,59 @@ class KnowledgeBase(ABC):
         Returns:
             数据库列表
         """
+        # 如果没有数据库连接，返回内存中的元数据
+        if KnowledgeBase._kb_dao is None or KnowledgeBase._file_dao is None:
+            databases = []
+            for db_id, db_meta in self.databases_meta.items():
+                db_dict = db_meta.copy()
+                db_dict["db_id"] = db_id
+                
+                # 获取该数据库的文件信息
+                db_files = {}
+                for file_id, file_info in self.files_meta.items():
+                    if file_info.get("database_id") == db_id:
+                        file_copy = file_info.copy()
+                        file_copy["file_id"] = file_id
+                        file_copy["file_type"] = file_info.get("file_type", "")
+                        file_copy["status"] = file_info.get("status", "done")
+                        file_copy["is_folder"] = file_info.get("is_folder", False)
+                        file_copy["parent_id"] = file_info.get("parent_id", None)
+                        db_files[file_id] = file_copy
+                
+                # 按创建时间倒序排序文件列表
+                sorted_files = dict(
+                    sorted(
+                        db_files.items(),
+                        key=lambda item: item[1].get("created_at") or "",
+                        reverse=True,
+                    )
+                )
+                
+                db_dict["files"] = sorted_files
+                db_dict["row_count"] = len(sorted_files)
+                db_dict["status"] = "已连接"
+                databases.append(db_dict)
+            
+            return {"databases": databases}
+        
+        # 使用数据库连接获取数据
         databases = []
-        for db_id, meta in self.databases_meta.items():
-            # 检查并修复异常的processing状态
-            self._check_and_fix_processing_status(db_id)
-
-            db_dict = meta.copy()
-            db_dict["db_id"] = db_id
+        db_list = KnowledgeBase._kb_dao.get_all_knowledge_bases_sync()
+        
+        for db_meta in db_list:
+            db_dict = db_meta.copy()
+            db_dict["db_id"] = db_dict["id"]
 
             # 获取文件信息
+            files = KnowledgeBase._file_dao.get_files_by_kb_id_sync(db_dict["id"])
             db_files = {}
-            for file_id, file_info in self.files_meta.items():
-                if file_info.get("database_id") == db_id:
-                    created_at = self._normalize_timestamp(file_info.get("created_at"))
-                    db_files[file_id] = {
-                        "file_id": file_id,
-                        "filename": file_info.get("filename", ""),
-                        "path": file_info.get("path", ""),
-                        "type": file_info.get("file_type", ""),
-                        "status": file_info.get("status", "done"),
-                        "created_at": created_at,
-                        "is_folder": file_info.get("is_folder", False),
-                        "parent_id": file_info.get("parent_id", None),
-                    }
+            for file_info in files:
+                file_info["file_id"] = file_info["id"]
+                file_info["file_type"] = file_info.get("file_type", "")
+                file_info["status"] = file_info.get("status", "done")
+                file_info["is_folder"] = file_info.get("is_folder", False)
+                file_info["parent_id"] = file_info.get("parent_id", None)
+                db_files[file_info["id"]] = file_info
 
             # 按创建时间倒序排序文件列表
             sorted_files = dict(
@@ -442,22 +548,20 @@ class KnowledgeBase(ABC):
             status_changed = False
 
             # 检查该数据库下所有processing状态的文件
-            for file_id, file_info in self.files_meta.items():
-                if file_info.get("database_id") == db_id and file_info.get("status") == "processing":
+            files = self._file_dao.get_files_by_kb_id_sync(db_id)
+            for file_info in files:
+                if file_info.get("status") == "processing":
+                    file_id = file_info.get("id")
                     # 检查文件是否真的在处理队列中
                     if not self._is_file_in_processing_queue(file_id):
                         logger.warning(
                             f"File {file_id} has processing status but is not in processing queue, marking as error"
                         )
-                        self.files_meta[file_id]["status"] = "error"
-                        self.files_meta[file_id]["error"] = (
-                            "Processing interrupted - file not found in processing queue"
-                        )
+                        self._file_dao.update_file_status_sync(file_id, "failed", "Processing interrupted - file not found in processing queue")
                         status_changed = True
 
-            # 如果有状态变更，保存元数据
+            # 如果有状态变更，记录日志
             if status_changed:
-                self._save_metadata()
                 logger.info(f"Fixed processing status for database {db_id}")
 
         except Exception as e:
@@ -472,23 +576,22 @@ class KnowledgeBase(ABC):
             folder_id: Folder ID to delete
         """
         # Find all children
-        children = [
-            fid
-            for fid, meta in self.files_meta.items()
-            if meta.get("database_id") == db_id and meta.get("parent_id") == folder_id
-        ]
+        if KnowledgeBase._file_dao is None:
+            logger.warning("No database connection, cannot retrieve folder children")
+            # 如果没有数据库连接，无法执行递归删除，只调用删除文件的方法
+            await self.delete_file(db_id, folder_id)
+        else:
+            children = KnowledgeBase._file_dao.get_folder_children_sync(db_id, folder_id)
 
-        for child_id in children:
-            child_meta = self.files_meta.get(child_id)
-            if child_meta and child_meta.get("is_folder"):
-                await self.delete_folder(db_id, child_id)
-            else:
-                await self.delete_file(db_id, child_id)
+            for child_id in children:
+                child_meta = KnowledgeBase._file_dao.get_file_by_id_sync(child_id)
+                if child_meta and child_meta.get("is_folder"):
+                    await self.delete_folder(db_id, child_id)
+                else:
+                    await self.delete_file(db_id, child_id)
 
-        # Delete the folder itself
-        # We call delete_file which should handle the actual removal.
-        # Implementations should ensure they handle folder deletion gracefully (e.g. skip vector deletion)
-        await self.delete_file(db_id, folder_id)
+            # Delete the folder itself
+            await self.delete_file(db_id, folder_id)
 
     async def move_file(self, db_id: str, file_id: str, new_parent_id: str | None) -> dict:
         """
@@ -502,15 +605,15 @@ class KnowledgeBase(ABC):
         Returns:
             dict: Updated metadata
         """
-        if file_id not in self.files_meta:
+        file_info = self._file_dao.get_file_by_id_sync(file_id)
+        if not file_info:
             raise ValueError(f"File {file_id} not found")
 
-        meta = self.files_meta[file_id]
-        if meta.get("database_id") != db_id:
+        if file_info.get("database_id") != db_id:
             raise ValueError(f"File {file_id} does not belong to database {db_id}")
 
         # Basic cycle detection for folders
-        if meta.get("is_folder") and new_parent_id:
+        if file_info.get("is_folder") and new_parent_id:
             # Check if new_parent_id is a child of file_id (or is file_id itself)
             if new_parent_id == file_id:
                 raise ValueError("Cannot move a folder into itself")
@@ -518,16 +621,19 @@ class KnowledgeBase(ABC):
             # Walk up the tree from new_parent_id
             current = new_parent_id
             while current:
-                parent_meta = self.files_meta.get(current)
+                parent_meta = self._file_dao.get_file_by_id_sync(current)
                 if not parent_meta:
                     break  # Should not happen if integrity is maintained
                 if current == file_id:
                     raise ValueError("Cannot move a folder into its own subfolder")
                 current = parent_meta.get("parent_id")
 
-        meta["parent_id"] = new_parent_id
-        self._save_metadata()
-        return meta
+        # Update parent_id in database
+        success = self._file_dao.update_file_parent_sync(file_id, new_parent_id)
+        if not success:
+            raise Exception(f"Failed to update file parent for {file_id}")
+
+        return self._file_dao.get_file_by_id_sync(file_id)
 
     @abstractmethod
     async def delete_file(self, db_id: str, file_id: str) -> None:
@@ -614,17 +720,9 @@ class KnowledgeBase(ABC):
         Returns:
             更新后的数据库信息
         """
-        if db_id not in self.databases_meta:
+        success = self._kb_dao.update_knowledge_base_sync(db_id, name, description, llm_info)
+        if not success:
             raise ValueError(f"数据库 {db_id} 不存在")
-
-        self.databases_meta[db_id]["name"] = name
-        self.databases_meta[db_id]["description"] = description
-
-        # 如果提供了 llm_info，则更新（仅针对 LightRAG 类型）
-        if llm_info is not None:
-            self.databases_meta[db_id]["llm_info"] = llm_info
-
-        self._save_metadata()
 
         return self.get_database_info(db_id)
 
@@ -636,106 +734,73 @@ class KnowledgeBase(ABC):
             检索器字典
         """
         retrievers = {}
-        for db_id, meta in self.databases_meta.items():
+        
+        if KnowledgeBase._kb_dao is None:
+            # 如果没有数据库连接，使用内存中的元数据
+            logger.warning("No database connection, using in-memory metadata for retrievers")
+            
+            for db_id, db_meta in self.databases_meta.items():
+                def make_retriever(db_id):
+                    async def retriever(query_text, **kwargs):
+                        return await self.aquery(query_text, db_id, **kwargs)
 
-            def make_retriever(db_id):
-                async def retriever(query_text, **kwargs):
-                    return await self.aquery(query_text, db_id, **kwargs)
+                    return retriever
 
-                return retriever
+                retrievers[db_id] = {
+                    "name": db_meta["name"],
+                    "description": db_meta["description"],
+                    "retriever": make_retriever(db_id),
+                    "metadata": db_meta,
+                }
+        else:
+            db_list = KnowledgeBase._kb_dao.get_all_knowledge_bases_sync()
+            for db_meta in db_list:
+                db_id = db_meta["id"]
 
-            retrievers[db_id] = {
-                "name": meta["name"],
-                "description": meta["description"],
-                "retriever": make_retriever(db_id),
-                "metadata": meta,
-            }
+                def make_retriever(db_id):
+                    async def retriever(query_text, **kwargs):
+                        return await self.aquery(query_text, db_id, **kwargs)
+
+                    return retriever
+
+                retrievers[db_id] = {
+                    "name": db_meta["name"],
+                    "description": db_meta["description"],
+                    "retriever": make_retriever(db_id),
+                    "metadata": db_meta,
+                }
         return retrievers
 
-    def _load_metadata(self):
-        """加载元数据"""
-        meta_file = os.path.join(self.work_dir, f"metadata_{self.kb_type}.json")
-
-        if os.path.exists(meta_file):
-            try:
-                with open(meta_file, encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.databases_meta = data.get("databases", {})
-                    self.files_meta = data.get("files", {})
-                    self.benchmarks_meta = data.get("benchmarks", {})
-                logger.info(f"Loaded {self.kb_type} metadata for {len(self.databases_meta)} databases")
-            except Exception as e:
-                logger.error(f"Failed to load {self.kb_type} metadata: {e}")
-                # 尝试从备份恢复
-                backup_file = f"{meta_file}.backup"
-                if os.path.exists(backup_file):
-                    try:
-                        with open(backup_file, encoding="utf-8") as f:
-                            data = json.load(f)
-                            self.databases_meta = data.get("databases", {})
-                            self.files_meta = data.get("files", {})
-                            self.benchmarks_meta = data.get("benchmarks", {})
-                        logger.info(f"Loaded {self.kb_type} metadata from backup")
-                        # 恢复备份文件
-                        shutil.copy2(backup_file, meta_file)
-                        return
-                    except Exception as backup_e:
-                        logger.error(f"Failed to load backup: {backup_e}")
-
-                # 如果加载失败，初始化为空状态
-                logger.warning(f"Initializing empty {self.kb_type} metadata")
+    def _load_metadata_from_db(self):
+        """从数据库加载元数据"""
+        try:
+            # 如果没有数据库连接，初始化为空
+            if KnowledgeBase._kb_dao is None or KnowledgeBase._file_dao is None:
+                logger.warning("No database connection, initializing empty metadata")
                 self.databases_meta = {}
                 self.files_meta = {}
                 self.benchmarks_meta = {}
+                return
+            
+            # 加载数据库信息
+            db_list = KnowledgeBase._kb_dao.get_all_knowledge_bases_sync()
+            self.databases_meta = {db["id"]: db for db in db_list}
 
-    def _serialize_metadata(self, obj):
-        """递归序列化元数据中的 Pydantic 模型"""
-        if hasattr(obj, "dict"):
-            return obj.dict()
-        elif isinstance(obj, dict):
-            return {k: self._serialize_metadata(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [self._serialize_metadata(item) for item in obj]
-        else:
-            return obj
+            # 加载文件信息
+            all_files = []
+            for db_id in self.databases_meta:
+                files = KnowledgeBase._file_dao.get_files_by_kb_id_sync(db_id)
+                all_files.extend(files)
+            self.files_meta = {file["id"]: file for file in all_files}
 
-    def _save_metadata(self):
-        """保存元数据"""
-        self._normalize_metadata_state()
-        meta_file = os.path.join(self.work_dir, f"metadata_{self.kb_type}.json")
-        backup_file = f"{meta_file}.backup"
-
-        try:
-            # 创建简单备份
-            if os.path.exists(meta_file):
-                shutil.copy2(meta_file, backup_file)
-
-            # 准备数据并序列化 Pydantic 模型
-            data = {
-                "databases": self._serialize_metadata(self.databases_meta),
-                "files": self._serialize_metadata(self.files_meta),
-                "benchmarks": self._serialize_metadata(self.benchmarks_meta),
-                "kb_type": self.kb_type,
-                "updated_at": utc_isoformat(),
-            }
-
-            # 原子性写入（使用临时文件）
-            with tempfile.NamedTemporaryFile(
-                mode="w", dir=os.path.dirname(meta_file), prefix=".tmp_", suffix=".json", delete=False
-            ) as tmp_file:
-                json.dump(data, tmp_file, ensure_ascii=False, indent=2)
-                temp_path = tmp_file.name
-
-            os.replace(temp_path, meta_file)
-            logger.debug(f"Saved {self.kb_type} metadata")
-
+            logger.info(f"Loaded metadata from database: {len(self.databases_meta)} databases, {len(self.files_meta)} files")
         except Exception as e:
-            logger.error(f"Failed to save {self.kb_type} metadata: {e}")
-            # 尝试恢复备份
-            if os.path.exists(backup_file):
-                try:
-                    shutil.copy2(backup_file, meta_file)
-                    logger.info("Restored metadata from backup")
-                except Exception as restore_e:
-                    logger.error(f"Failed to restore backup: {restore_e}")
-            raise e
+            logger.error(f"Failed to load metadata from database: {e}")
+            self.databases_meta = {}
+            self.files_meta = {}
+            self.benchmarks_meta = {}
+
+    def _save_metadata_to_db(self):
+        """保存元数据到数据库"""
+        # 由于现在使用数据库存储，不再需要单独保存元数据
+        pass

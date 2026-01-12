@@ -8,6 +8,9 @@ from src.knowledge.base import KBNotFoundError, KnowledgeBase
 from src.knowledge.factory import KnowledgeBaseFactory
 from src.utils import logger
 from src.utils.datetime_utils import coerce_any_to_utc_datetime, utc_isoformat
+from src.knowledge.db.connection import KnowledgeBaseDB
+from src.knowledge.db.kb_operations import KnowledgeBaseDAO
+from src.knowledge.db.file_operations import FileDAO
 
 
 class KnowledgeBaseManager:
@@ -17,15 +20,27 @@ class KnowledgeBaseManager:
     统一管理多种类型的知识库实例，提供统一的外部接口
     """
 
-    def __init__(self, work_dir: str):
+    def __init__(self, work_dir: str, db_config: dict = None):
         """
         初始化知识库管理器
 
         Args:
             work_dir: 工作目录
+            db_config: 数据库配置
         """
         self.work_dir = work_dir
         os.makedirs(work_dir, exist_ok=True)
+
+        # 初始化数据库连接
+        if db_config:
+            self.db_instance = KnowledgeBaseDB(**db_config)
+            self.kb_dao = KnowledgeBaseDAO(self.db_instance)
+            self.file_dao = FileDAO(self.db_instance)
+        else:
+            # 如果没有提供db_config，初始化为None，但需要在需要时检查
+            self.db_instance = None
+            self.kb_dao = None
+            self.file_dao = None
 
         # 知识库实例缓存 {kb_type: kb_instance}
         self.kb_instances: dict[str, KnowledgeBase] = {}
@@ -45,87 +60,44 @@ class KnowledgeBaseManager:
 
         logger.info("KnowledgeBaseManager initialized")
 
-        # 在后台运行数据一致性检测（不阻塞初始化）
-        # try:
-        #     # 尝试获取当前事件循环，如果没有则创建新的
-        #     try:
-        #         loop = asyncio.get_event_loop()
-        #         if loop.is_running():
-        #             # 如果已经在事件循环中，创建任务
-        #             asyncio.create_task(self.detect_data_inconsistencies())
-        #         else:
-        #             # 如果事件循环未运行，直接运行
-        #             loop.run_until_complete(self.detect_data_inconsistencies())
-        #     except RuntimeError:
-        #         # 没有事件循环，创建一个来运行检测
-        #         asyncio.run(self.detect_data_inconsistencies())
-        # except Exception as e:
-        #     logger.warning(f"初始化时运行数据一致性检测失败: {e}")
-
     def _load_global_metadata(self):
-        """加载全局元数据"""
-        meta_file = os.path.join(self.work_dir, "global_metadata.json")
-
-        if os.path.exists(meta_file):
-            try:
-                with open(meta_file, encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.global_databases_meta = data.get("databases", {})
-                logger.info(f"Loaded global metadata for {len(self.global_databases_meta)} databases from {meta_file}")
-            except Exception as e:
-                logger.error(f"Failed to load global metadata: {e}")
-                # 尝试从备份恢复
-                backup_file = f"{meta_file}.backup"
-                if os.path.exists(backup_file):
-                    try:
-                        with open(backup_file, encoding="utf-8") as f:
-                            data = json.load(f)
-                            self.global_databases_meta = data.get("databases", {})
-                        logger.info("Loaded global metadata from backup")
-                        # 恢复备份文件
-                        shutil.copy2(backup_file, meta_file)
-                        return
-                    except Exception as backup_e:
-                        logger.error(f"Failed to load backup: {backup_e}")
-
-                # 如果加载失败，初始化为空状态
-                logger.warning("Initializing empty global metadata")
+        """加载全局元数据 - 从数据库加载"""
+        try:
+            # 如果没有数据库连接，尝试从各个知识库实例中加载元数据
+            if not self.kb_dao:
+                logger.warning("No database connection, attempting to load global metadata from knowledge base instances")
                 self.global_databases_meta = {}
+                
+                # 尝试从已有的知识库实例中加载元数据
+                for kb_type, kb_instance in self.kb_instances.items():
+                    if hasattr(kb_instance, 'databases_meta'):
+                        for db_id, db_meta in kb_instance.databases_meta.items():
+                            # 确保db_meta包含kb_type信息
+                            db_meta_copy = db_meta.copy()
+                            if 'kb_type' not in db_meta_copy:
+                                db_meta_copy['kb_type'] = kb_instance.kb_type
+                            self.global_databases_meta[db_id] = db_meta_copy
+                
+                logger.info(f"Loaded global metadata for {len(self.global_databases_meta)} databases from knowledge base instances")
+                return
+            
+            # 从数据库加载全局元数据
+            all_kbs = self.kb_dao.get_all_knowledge_bases_sync()
+            for kb in all_kbs:
+                self.global_databases_meta[kb['id']] = kb
+            logger.info(f"Loaded global metadata for {len(self.global_databases_meta)} databases from database")
+        except Exception as e:
+            logger.error(f"Failed to load global metadata from database: {e}")
+            # 初始化为空状态
+            logger.warning("Initializing empty global metadata")
+            self.global_databases_meta = {}
 
     def _save_global_metadata(self):
-        """保存全局元数据"""
+        """保存全局元数据 - 通过数据库DAO保存"""
         self._normalize_global_metadata()
-        meta_file = os.path.join(self.work_dir, "global_metadata.json")
-        backup_file = f"{meta_file}.backup"
-
-        try:
-            # 创建简单备份
-            if os.path.exists(meta_file):
-                shutil.copy2(meta_file, backup_file)
-
-            # 准备数据
-            data = {"databases": self.global_databases_meta, "updated_at": utc_isoformat(), "version": "2.0"}
-
-            # 原子性写入（使用临时文件）
-            with tempfile.NamedTemporaryFile(
-                mode="w", dir=os.path.dirname(meta_file), prefix=".tmp_", suffix=".json", delete=False
-            ) as tmp_file:
-                json.dump(data, tmp_file, ensure_ascii=False, indent=2)
-                temp_path = tmp_file.name
-
-            os.replace(temp_path, meta_file)
-            logger.debug("Saved global metadata")
-
-        except Exception as e:
-            logger.error(f"Failed to save global metadata: {e}")
-            # 尝试恢复备份
-            if os.path.exists(backup_file):
-                try:
-                    shutil.copy2(backup_file, meta_file)
-                    logger.info("Restored global metadata from backup")
-                except Exception as restore_e:
-                    logger.error(f"Failed to restore backup: {restore_e}")
-            raise e
+        # 由于现在使用数据库存储，不再保存到文件
+        # 保存操作通过数据库DAO完成
+        pass
 
     def _normalize_global_metadata(self) -> None:
         """Normalize stored timestamps within the global metadata cache."""
@@ -146,12 +118,25 @@ class KnowledgeBaseManager:
             kb_type = db_meta.get("kb_type", "lightrag")  # 默认为lightrag
             kb_types_in_use.add(kb_type)
 
+        # 如果没有从全局元数据中找到任何数据库，尝试从工作目录中发现可能存在的数据库
+        if not kb_types_in_use and self.db_instance is None:
+            # 尝试扫描工作目录中可能存在的知识库
+            if os.path.exists(self.work_dir):
+                for item in os.listdir(self.work_dir):
+                    item_path = os.path.join(self.work_dir, item)
+                    if os.path.isdir(item_path):
+                        # 检查是否是知识库目录（通常以kb_或kb_private_开头）
+                        if item.startswith('kb_'):
+                            # 假设这是lightrag类型的KB，因为这是默认类型
+                            kb_types_in_use.add('lightrag')
+
         # 为每种使用中的知识库类型创建实例
         for kb_type in kb_types_in_use:
             try:
                 self._get_or_create_kb_instance(kb_type)
             except Exception as e:
                 logger.error(f"Failed to initialize {kb_type} knowledge base: {e}")
+                import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")  # 添加详细错误信息
 
     def _get_or_create_kb_instance(self, kb_type: str) -> KnowledgeBase:
@@ -167,9 +152,10 @@ class KnowledgeBaseManager:
         if kb_type in self.kb_instances:
             return self.kb_instances[kb_type]
 
-        # 创建新的知识库实例
+        # 创建新的知识库实例，传递数据库配置
         kb_work_dir = os.path.join(self.work_dir, f"{kb_type}_data")
-        kb_instance = KnowledgeBaseFactory.create(kb_type, kb_work_dir)
+        db_config_to_pass = self.db_instance.mysql_config if (self.db_instance and hasattr(self.db_instance, 'mysql_config')) else None
+        kb_instance = KnowledgeBaseFactory.create(kb_type, kb_work_dir, db_config=db_config_to_pass)
 
         self.kb_instances[kb_type] = kb_instance
         logger.info(f"Created {kb_type} knowledge base instance")
@@ -195,10 +181,22 @@ class KnowledgeBaseManager:
         Raises:
             KBNotFoundError: 数据库不存在或知识库类型不支持
         """
-        if db_id not in self.global_databases_meta:
-            raise KBNotFoundError(f"Database {db_id} not found")
-
-        kb_type = self.global_databases_meta[db_id].get("kb_type", "lightrag")
+        # 首先尝试从全局元数据中查找
+        if db_id in self.global_databases_meta:
+            kb_type = self.global_databases_meta[db_id].get("kb_type", "lightrag")
+        else:
+            # 如果全局元数据中没有，尝试从数据库中直接查询
+            kb_type = None
+            if self.kb_dao:
+                db_info = self.kb_dao.get_knowledge_base_sync(db_id)
+                if db_info:
+                    kb_type = db_info.get("kb_type", "lightrag")
+                    # 同时更新全局元数据缓存
+                    self.global_databases_meta[db_id] = db_info
+            
+            # 如果仍然找不到，抛出异常
+            if kb_type is None:
+                raise KBNotFoundError(f"Database {db_id} not found")
 
         if not KnowledgeBaseFactory.is_type_supported(kb_type):
             raise KBNotFoundError(f"Unsupported knowledge base type: {kb_type}")
@@ -223,8 +221,12 @@ class KnowledgeBaseManager:
 
         # 收集所有知识库的数据库信息
         for kb_type, kb_instance in self.kb_instances.items():
-            kb_databases = kb_instance.get_databases()["databases"]
-            all_databases.extend(kb_databases)
+            try:
+                kb_databases = kb_instance.get_databases()["databases"]
+                all_databases.extend(kb_databases)
+            except Exception as e:
+                logger.error(f"Failed to get databases from {kb_type} knowledge base: {e}")
+                continue  # 继续处理其他知识库实例
 
         return {"databases": all_databases}
 
@@ -237,17 +239,7 @@ class KnowledgeBaseManager:
         self, database_name: str, description: str, kb_type: str = "lightrag", embed_info: dict | None = None, **kwargs
     ) -> dict:
         """
-        创建数据库
-
-        Args:
-            database_name: 数据库名称
-            description: 数据库描述
-            kb_type: 知识库类型，默认为lightrag
-            embed_info: 嵌入模型信息
-            **kwargs: 其他配置参数，包括chunk_size和chunk_overlap
-
-        Returns:
-            数据库信息字典
+        创建知识库 - 现在使用数据库存储
         """
         if not KnowledgeBaseFactory.is_type_supported(kb_type):
             available_types = list(KnowledgeBaseFactory.get_available_types().keys())
@@ -255,36 +247,59 @@ class KnowledgeBaseManager:
 
         kb_instance = self._get_or_create_kb_instance(kb_type)
 
-        db_info = kb_instance.create_database(database_name, description, embed_info, **kwargs)
+        db_info = await kb_instance.create_database(database_name, description, embed_info, **kwargs)
         db_id = db_info["db_id"]
 
-        async with self._metadata_lock:
+        # 通过数据库DAO更新全局元数据
+        if self.kb_dao:
+            success = self.kb_dao.update_knowledge_base_sync(db_id, 
+                name=database_name,
+                description=description,
+                llm_info=None  # 如果需要的话可以传递llm_info
+            )
+
+            if not success:
+                logger.error(f"Failed to update global metadata for {db_id}")
+        else:
+            # 如果没有数据库连接，更新全局元数据到内存中
             self.global_databases_meta[db_id] = {
+                "id": db_id,
                 "name": database_name,
                 "description": description,
                 "kb_type": kb_type,
-                "created_at": utc_isoformat(),
-                "additional_params": kwargs.copy(),
+                "created_at": db_info.get("created_at"),
+                "updated_at": db_info.get("updated_at"),
+                **kwargs
             }
-            self._save_global_metadata()
 
         logger.info(f"Created {kb_type} database: {database_name} ({db_id}) with {kwargs}")
         return db_info
 
     async def delete_database(self, db_id: str) -> dict:
-        """删除数据库"""
+        """删除数据库 - 从数据库删除"""
         try:
             kb_instance = self._get_kb_for_database(db_id)
             result = kb_instance.delete_database(db_id)
 
-            async with self._metadata_lock:
-                if db_id in self.global_databases_meta:
-                    del self.global_databases_meta[db_id]
-                    self._save_global_metadata()
+            # 从全局元数据中删除
+            if db_id in self.global_databases_meta:
+                del self.global_databases_meta[db_id]
+                
+                # 通过数据库DAO删除全局元数据
+                if self.kb_dao:
+                    success = self.kb_dao.delete_knowledge_base_sync(db_id)
+                    if not success:
+                        logger.error(f"Failed to delete global metadata for {db_id}")
 
             return result
         except KBNotFoundError as e:
             logger.warning(f"Database {db_id} not found during deletion: {e}")
+            return {"message": "删除成功"}
+        except Exception as e:
+            logger.error(f"Error deleting database {db_id}: {e}")
+            # 即使发生错误，也要尝试清理内存中的元数据
+            if db_id in self.global_databases_meta:
+                del self.global_databases_meta[db_id]
             return {"message": "删除成功"}
 
     async def add_content(self, db_id: str, items: list[str], params: dict | None = None) -> list[dict]:
@@ -326,6 +341,28 @@ class KnowledgeBaseManager:
 
             return db_info
         except KBNotFoundError:
+            logger.warning(f"Database {db_id} not found in any knowledge base instance")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting database info for {db_id}: {e}")
+            # 检查是否是由于数据库连接问题导致的错误
+            if db_id in self.global_databases_meta:
+                # 如果全局元数据中存在该数据库，尝试使用全局元数据构建基本的信息
+                logger.info(f"Using global metadata as fallback for {db_id}")
+                global_meta = self.global_databases_meta[db_id]
+                return {
+                    "id": db_id,
+                    "db_id": db_id,
+                    "name": global_meta.get("name", ""),
+                    "description": global_meta.get("description", ""),
+                    "kb_type": global_meta.get("kb_type", "lightrag"),
+                    "created_at": global_meta.get("created_at"),
+                    "updated_at": global_meta.get("updated_at"),
+                    "files": {},
+                    "row_count": 0,
+                    "status": "已连接",
+                    "additional_params": global_meta.get("additional_params", {})
+                }
             return None
 
     async def delete_folder(self, db_id: str, folder_id: str) -> None:
@@ -356,6 +393,8 @@ class KnowledgeBaseManager:
     async def get_file_info(self, db_id: str, file_id: str) -> dict:
         """获取文件完整信息（基本信息+内容信息）- 保持向后兼容"""
         kb_instance = self._get_kb_for_database(db_id)
+        logger.info(f"获取文件完整信息 Getting file info for {file_id}")
+        logger.info(f"获取文件完整信息 kb_instance:{kb_instance} ")
         return await kb_instance.get_file_info(db_id, file_id)
 
     def get_db_upload_path(self, db_id: str | None = None) -> str:
@@ -467,28 +506,26 @@ class KnowledgeBaseManager:
 
         return False
 
-    async def update_database(
+    def update_database(
         self, db_id: str, name: str, description: str, llm_info: dict = None, additional_params: dict | None = None
     ) -> dict:
         """更新数据库"""
         kb_instance = self._get_kb_for_database(db_id)
         result = kb_instance.update_database(db_id, name, description, llm_info)
 
-        async with self._metadata_lock:
-            if db_id in self.global_databases_meta:
-                self.global_databases_meta[db_id]["name"] = name
-                self.global_databases_meta[db_id]["description"] = description
+        # 更新全局元数据
+        if db_id in self.global_databases_meta:
+            self.global_databases_meta[db_id]["name"] = name
+            self.global_databases_meta[db_id]["description"] = description
 
-                # 合并现有的 additional_params 和新的 additional_params
-                existing_additional_params = self.global_databases_meta[db_id].get("additional_params", {})
-                if additional_params:
-                    existing_additional_params.update(additional_params)
-                self.global_databases_meta[db_id]["additional_params"] = existing_additional_params
+            # 合并现有的 additional_params 和新的 additional_params
+            existing_additional_params = self.global_databases_meta[db_id].get("additional_params", {})
+            if additional_params:
+                existing_additional_params.update(additional_params)
+            self.global_databases_meta[db_id]["additional_params"] = existing_additional_params
 
-                # 清理旧的 top-level key (如果存在)
-                self.global_databases_meta[db_id].pop("auto_generate_questions", None)
-
-                self._save_global_metadata()
+            # 清理旧的 top-level key (如果存在)
+            self.global_databases_meta[db_id].pop("auto_generate_questions", None)
 
         return result
 
