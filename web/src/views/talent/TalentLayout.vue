@@ -72,7 +72,7 @@
         </a-menu-item>
         <a-menu-item key="analysis">
           <BarChartOutlined />
-          能力分析
+          考核预评
         </a-menu-item>
         <a-menu-item key="knowledge">
           <ClusterOutlined />

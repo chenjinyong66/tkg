@@ -32,14 +32,14 @@
               <span class="info-value">{{ user.age }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">籍贯</span>
+              <span class="info-label">学历</span>
               <div class="info-separator"></div>
-              <span class="info-value">{{ user.origin }}</span>
+              <span class="info-value">{{ user.education }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">民族</span>
+              <span class="info-label">职称</span>
               <div class="info-separator"></div>
-              <span class="info-value">{{ user.nation }}</span>
+              <span class="info-value">{{ user.title }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">入职时间</span>
@@ -47,22 +47,22 @@
               <span class="info-value">{{ user.entryTime }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">职务类型</span>
+              <span class="info-label">职务</span>
               <div class="info-separator"></div>
-              <span class="info-value">{{ user.positionType }}</span>
+              <span class="info-value">{{ user.position }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">政治面貌</span>
+              <span class="info-label">专业领域</span>
               <div class="info-separator"></div>
-              <span class="info-value">{{ user.politicalStatus }}</span>
+              <span class="info-value">{{ user.specialty }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">毕业大学</span>
+              <span class="info-label">毕业院校</span>
               <div class="info-separator"></div>
               <span class="info-value">{{ user.university }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">电话号码</span>
+              <span class="info-label">联系电话</span>
               <div class="info-separator"></div>
               <span class="info-value phone">{{ user.phone }}</span>
             </div>
@@ -81,7 +81,7 @@
         <div v-if="hasAssessment" class="card-container" style="background: #fff; border-radius: 8px; border: 1px solid #e6f0ff; padding: 20px; height: 100%;">
           <div style="display: flex; height: 100%;">
             <!-- 左侧：考核等级 -->
-            <div style="flex: 1; padding-right: 20px; border-right: 1px solid #e6f0ff; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div style="flex: 1; padding-right: 10px; border-right: 2px solid #e6f0ff; display: flex; flex-direction: column; justify-content: center; align-items: center;">
               <!-- 奖杯图标 - 使用云南电网主题蓝色 -->
               <div style="margin-bottom: 12px; position: relative;">
                 <!-- 奖杯主体 -->
@@ -137,7 +137,7 @@
             </div>
 
             <!-- 右侧：考核指标 -->
-            <div style="flex: 1.5; padding-left: 20px; display: flex; flex-direction: column; justify-content: center;">
+            <div style="flex: 2; padding-left: 10px; display: flex; flex-direction: column; justify-content: center;">
               <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 15px; display: flex; align-items: center;">
                 <!-- 更精致的文档图标 -->
                 <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 8px; color: #0066b3;">
@@ -191,7 +191,7 @@
               </div>
             </div>
 
-            <!-- 里程碑完成总数 -->
+            <!-- 发明专利数 -->
             <div style="width: 50%; padding: 5px; display: flex; flex-direction: column;">
               <div class="stat-item">
                 <div style="display: flex; align-items: center; height: 100%;">
@@ -201,8 +201,8 @@
                     </svg>
                   </div>
                   <div style="flex: 1;">
-                    <div class="label">里程碑完成总数</div>
-                    <div class="value">{{ stats.milestoneCount }}</div>
+                    <div class="label">发明专利数</div>
+                    <div class="value">{{ stats.patentCount }}</div>
                   </div>
                 </div>
               </div>
@@ -225,7 +225,7 @@
               </div>
             </div>
 
-            <!-- 项目绩效平均分 -->
+            <!-- 学术论文数 -->
             <div style="width: 50%; padding: 5px; display: flex; flex-direction: column;">
               <div class="stat-item">
                 <div style="display: flex; align-items: center; height: 100%;">
@@ -235,8 +235,8 @@
                     </svg>
                   </div>
                   <div style="flex: 1;">
-                    <div class="label">项目绩效平均分</div>
-                    <div class="value">{{ stats.averageScore }}</div>
+                    <div class="label">学术论文数</div>
+                    <div class="value">{{ stats.paperCount }}</div>
                   </div>
                 </div>
               </div>
@@ -256,7 +256,7 @@
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="#0066b3"/>
             </svg>
             人才画像
-            <div style="margin-left: 10px; font-size: 12px; color: #999; font-weight: normal;">基于综合评估的人才发展蓝图</div>
+            <div style="margin-left: 10px; font-size: 12px; color: #999; font-weight: normal;">基于AI评估的人才发展蓝图</div>
           </div>
 
           <!-- 人才画像核心信息 -->
@@ -291,7 +291,7 @@
                     <div class="score-label">人才指数</div>
                   </div>
                 </div>
-                <div class="positioning-label">高潜人才</div>
+                <div class="positioning-label">{{ talentProfile.talentLevel }}</div>
               </div>
             </div>
 
@@ -351,7 +351,7 @@
                     </div>
                   </div>
                   <div class="assessment-summary">
-                    <div class="summary-title">评估要点</div>
+                    <div class="summary-title">AI评估要点</div>
                     <div class="summary-text">{{ talentProfile.potential.summary }}</div>
                   </div>
                 </div>
@@ -367,7 +367,7 @@
                     发展方向规划
                   </div>
                   <div class="card-badge" style="background: #e6f0ff; color: #0066b3; border: 1px solid #b3d1ff;">
-                    3个方向
+                    {{ talentProfile.developmentDirections.length }}个方向
                   </div>
                 </div>
                 <div class="card-content">
@@ -387,7 +387,7 @@
                     </div>
                   </div>
                   <div class="recommendation">
-                    <div class="recommendation-title">专家建议</div>
+                    <div class="recommendation-title">AI建议</div>
                     <div class="recommendation-text">{{ talentProfile.developmentRecommendation }}</div>
                   </div>
                 </div>
@@ -464,7 +464,7 @@
                 </div>
               </div>
 
-              <!-- 里程碑完成总数 -->
+              <!-- 发明专利数 -->
               <div style="width: 50%; padding: 5px; display: flex; flex-direction: column;">
                 <div class="stat-item" style="height: 80px;">
                   <div style="display: flex; align-items: center; height: 100%;">
@@ -474,8 +474,8 @@
                       </svg>
                     </div>
                     <div style="flex: 1;">
-                      <div class="label">里程碑完成总数</div>
-                      <div class="value">{{ stats.milestoneCount }}</div>
+                      <div class="label">发明专利数</div>
+                      <div class="value">{{ stats.patentCount }}</div>
                     </div>
                   </div>
                 </div>
@@ -498,7 +498,7 @@
                 </div>
               </div>
 
-              <!-- 项目绩效平均分 -->
+              <!-- 学术论文数 -->
               <div style="width: 50%; padding: 5px; display: flex; flex-direction: column;">
                 <div class="stat-item" style="height: 80px;">
                   <div style="display: flex; align-items: center; height: 100%;">
@@ -508,8 +508,8 @@
                       </svg>
                     </div>
                     <div style="flex: 1;">
-                      <div class="label">项目绩效平均分</div>
-                      <div class="value">{{ stats.averageScore }}</div>
+                      <div class="label">学术论文数</div>
+                      <div class="value">{{ stats.paperCount }}</div>
                     </div>
                   </div>
                 </div>
@@ -534,12 +534,12 @@
                   <!-- 第二行：项目名称和评分 -->
                   <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; line-height: 1.4; margin-bottom: 4px;">
                     <span style="color: #333; font-weight: 600; flex: 1; margin-right: 8px;">{{ item.name }}</span>
-                    <span style="color: #0066b3; font-weight: 600; min-width: 40px; text-align: right;">{{ item.score }}</span>
+                    <span style="color: #0066b3; font-weight: 600; min-width: 40px; text-align: right;">{{ item.role }}</span>
                   </div>
                   <!-- 第三行：项目角色 -->
                   <div style="font-size: 14px; line-height: 1.4;">
-                    <span style="color: #666; margin-right: 6px;">项目角色：</span>
-                    <span style="color: #333; font-weight: 600;">{{ item.role }}</span>
+                    <span style="color: #666; margin-right: 6px;">项目级别：</span>
+                    <span style="color: #333; font-weight: 600;">{{ item.level }}</span>
                   </div>
                 </div>
               </div>
@@ -548,7 +548,7 @@
 
           <!-- 奖惩情况 -->
           <div class="card-container" style="background: #fff; border-radius: 8px; border: 1px solid #e6f0ff; padding: 20px; flex: 1;">
-            <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 20px;">奖惩情况</div>
+            <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 20px;">荣誉与奖项</div>
             <div style="display: flex; flex-wrap: wrap; margin: -5px -5px; height: calc(100% - 40px);">
               <div style="width: 50%; padding: 5px; height: 50%;" v-for="(item, index) in awardList" :key="index">
                 <div class="award-card" style="height: 100%;">
@@ -568,53 +568,53 @@
       <!-- 左侧人才评分 -->
       <div class="col" style="width: 66.6667%; padding: 10px;">
         <div class="card-container" style="background: #fff; border-radius: 8px; border: 1px solid #e6f0ff; padding: 15px; height: 100%;">
-          <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 15px;">人才评分</div>
+          <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 15px;">AI能力评估</div>
           <div style="display: flex; flex-wrap: wrap; margin: -4px -4px;">
-            <!-- 个人能力自评 -->
+            <!-- 专业能力评估 -->
             <div style="width: 25%; padding: 4px;">
               <div class="score-module" style="border: 1px solid #e6f0ff; border-radius: 6px; padding: 12px; height: 100%; background: #fff; box-shadow: 0 1px 4px rgba(0, 102, 179, 0.05);">
                 <!-- 模块标题行 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f5ff;">
-                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">个人能力自评</div>
-                  <div style="font-size: 13px; color: #ff4d4f; font-weight: 600;">{{ ratings.personal }}</div>
+                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">专业能力评估</div>
+                  <div style="font-size: 13px; color: #ff4d4f; font-weight: 600;">{{ ratings.professional }}</div>
                 </div>
                 <!-- 雷达图 -->
                 <div id="radar1" style="width: 100%; height: 190px;"></div>
               </div>
             </div>
 
-            <!-- 岗位胜任力 -->
+            <!-- 创新能力评估 -->
             <div style="width: 25%; padding: 4px;">
               <div class="score-module" style="border: 1px solid #e6f0ff; border-radius: 6px; padding: 12px; height: 100%; background: #fff; box-shadow: 0 1px 4px rgba(0, 102, 179, 0.05);">
                 <!-- 模块标题行 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f5ff;">
-                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">岗位胜任力</div>
-                  <div style="font-size: 13px; color: #ff4d4f; font-weight: 600;">{{ ratings.position }}</div>
+                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">创新能力评估</div>
+                  <div style="font-size: 13px; color: #ff4d4f; font-weight: 600;">{{ ratings.innovation }}</div>
                 </div>
                 <!-- 雷达图 -->
                 <div id="radar2" style="width: 100%; height: 190px;"></div>
               </div>
             </div>
 
-            <!-- 板凳数据 -->
+            <!-- 发展潜力评估 -->
             <div style="width: 25%; padding: 4px;">
               <div class="score-module" style="border: 1px solid #e6f0ff; border-radius: 6px; padding: 12px; height: 100%; background: #fff; box-shadow: 0 1px 4px rgba(0, 102, 179, 0.05);">
                 <!-- 模块标题行 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f5ff;">
-                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">板凳数据</div>
-                  <div style="font-size: 13px; color: #ff4d4f; font-weight: 600;">{{ ratings.bench }}</div>
+                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">发展潜力评估</div>
+                  <div style="font-size: 13px; color: #ff4d4f; font-weight: 600;">{{ ratings.potential }}</div>
                 </div>
                 <!-- 雷达图 -->
                 <div id="radar3" style="width: 100%; height: 190px;"></div>
               </div>
             </div>
 
-            <!-- 员工关系图谱 -->
+            <!-- 人才关系图谱 -->
             <div style="width: 25%; padding: 4px;">
               <div class="score-module" style="border: 1px solid #e6f0ff; border-radius: 6px; padding: 12px; height: 100%; background: #fff; box-shadow: 0 1px 4px rgba(0, 102, 179, 0.05);">
                 <!-- 模块标题行 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f0f5ff;">
-                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">员工关系图谱</div>
+                  <div style="font-size: 13px; color: #333; font-weight: 600; line-height: 1.2;">人才关系图谱</div>
                   <div style="font-size: 13px; color: #0066b3; font-weight: 600;">网络关系</div>
                 </div>
                 <!-- 关系图 -->
@@ -653,19 +653,19 @@
       </div>
     </div>
 
-    <!-- 第四行：考勤数据 + 其他信息 -->
+    <!-- 第四行：项目绩效 + 其他信息 -->
     <div class="row" style="display: flex; flex-wrap: wrap; margin: -20px -20px;">
-      <!-- 考勤数据 -->
+      <!-- 项目绩效趋势 -->
       <div class="col" style="width: 66.6667%; padding: 10px;">
         <div class="card-container" style="background: #fff; border-radius: 8px; border: 1px solid #e6f0ff; padding: 20px; height: 100%;">
-          <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 10px;">个人考勤数据</div>
+          <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 10px;">项目绩效趋势</div>
           <div style="font-size: 14px; color: #0066b3; display: flex; align-items: center; margin-bottom: 15px;">
             <svg width="16" height="16" viewBox="0 0 1024 1024" style="margin-right: 6px;">
               <path d="M512 64C264.6 64 64 264.6 64 512s200.6 448 448 448 448-200.6 448-448S759.4 64 512 64zm193.5 301.7l-210.6 292a31.8 31.8 0 0 1-51.7 0L318.5 484.9c-3.8-5.3 0-12.7 6.5-12.7h46.9c10.2 0 19.9 4.9 25.9 12.9L512 599.6l94.3-128.8c6-8 15.6-12.9 25.9-12.9H699c6.5 0 10.3 7.4 6.5 12.7z" fill="#0066b3" />
             </svg>
-            {{ attendance.average }}
+            {{ performance.average }}
           </div>
-          <div id="attendance-line" style="width: 100%; height: 190px;"></div>
+          <div id="performance-line" style="width: 100%; height: 190px;"></div>
         </div>
       </div>
 
@@ -680,11 +680,15 @@
             </div>
             <div class="info-row">
               <div style="font-size: 14px; color: #666; margin-bottom: 4px;">上次评估时间</div>
-              <div style="font-size: 14px; color: #333; font-weight: 600;">2023.06.15</div>
+              <div style="font-size: 14px; color: #333; font-weight: 600;">2024.06.15</div>
             </div>
             <div class="info-row">
               <div style="font-size: 14px; color: #666; margin-bottom: 4px;">下次评估时间</div>
-              <div style="font-size: 14px; color: #333; font-weight: 600;">2023.12.15</div>
+              <div style="font-size: 14px; color: #333; font-weight: 600;">2024.12.15</div>
+            </div>
+            <div class="info-row">
+              <div style="font-size: 14px; color: #666; margin-bottom: 4px;">人才计划</div>
+              <div style="font-size: 14px; color: #333; font-weight: 600;">兴滇英才支持计划</div>
             </div>
           </div>
         </div>
@@ -697,45 +701,46 @@
 import { onMounted, computed } from 'vue'
 import * as echarts from 'echarts'
 
-// 用户基本信息
+// 用户基本信息 - 张三（云南电网战略级专家候选人）
 const user = {
   avatar: 'https://avatars.githubusercontent.com/u/100',
-  name: '倪丽',
-  department: '置信项目组/人力资源部',
-  gender: '女',
-  age: 28,
-  origin: '上海市',
-  nation: '汉族',
-  entryTime: '2018.04',
-  positionType: '人事专员',
-  politicalStatus: '中共党员',
-  university: '上海交通大学',
-  phone: '139-1777-9998',
-  email: 'wangqi@shdc.com',
+  name: '张三',
+  department: '云南电网电力科学研究院',
+  gender: '男',
+  age: 38,
+  education: '博士',
+  title: '高级工程师',
+  entryTime: '2012.07',
+  position: '系统所所长',
+  specialty: '智能输变电/变电站智能运维',
+  university: '清华大学',
+  phone: '135-1878-6072',
+  email: 'zhangsan@yn.csg.cn',
   tags: [
-    { text: '专业人才库', style: 'background: #0066b3; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px;' },
-    { text: '青年骨干库', style: 'background: #0088cc; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;' }
+    { text: '技术专家', style: 'background: #0066b3; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px;' },
+    { text: '拔尖级专家', style: 'background: #0088cc; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-right: 5px;' },
+    { text: '兴滇英才', style: 'background: #52c41a; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;' }
   ]
 }
 
 // 统计卡片数据
 const stats = {
-  participationCount: '16个',
-  milestoneCount: '200个',
+  participationCount: '17个',
+  patentCount: '8项',
   responsibleCount: '5个',
-  averageScore: '4.7分'
+  paperCount: '7篇'
 }
 
-// 考核数据 - 可以设置为null或空对象来测试无考核数据的情况
+// 考核数据 - 战略级技术专家预评估结果
 const assessmentData = {
-  label: '上半年考核等级',
-  grade: '称职',
-  status: '考核通过',
-  title: '本年度重点考核指标',
+  label: '战略级专家评估',
+  grade: '92分',
+  status: '评估通过',
+  title: '战略级技术专家关键指标',
   indicators: [
-    '模块快速调研开发',
-    '人才盘点建库',
-    '优化现有流程'
+    '核心技术：拥有自主知识产权8项',
+    '重大项目：主持公司级重大科技项目',
+    '高水平成果：获省部级科技奖励'
   ]
 }
 
@@ -746,23 +751,24 @@ const hasAssessment = computed(() => {
 
 // 人才画像数据
 const talentProfile = {
-  talentScore: 82,
+  talentScore: 92,
+  talentLevel: '战略级专家',
 
   basicTags: [
-    { icon: '🎯', label: '岗龄', value: '5年' },
-    { icon: '🏷️', label: '职称', value: '人事中级专员' },
-    { icon: '📍', label: '挂职经历', value: '借调地产人力资源部' },
-    { icon: '🎓', label: '专业资质', value: '企业人力资源管理师' },
-    { icon: '🌍', label: '熟悉区域', value: '上海、华东' },
-    { icon: '📊', label: '绩效等级', value: '持续高绩效' }
+    { icon: '🎯', label: '人才层级', value: '拔尖级' },
+    { icon: '🏷️', label: '技术专家', value: '公司级' },
+    { icon: '📍', label: '专业领域', value: '智能输变电' },
+    { icon: '🎓', label: '最高学历', value: '博士' },
+    { icon: '🌍', label: '院校类别', value: '985' },
+    { icon: '📊', label: '绩效等级', value: '优秀' }
   ],
 
   skillTags: [
-    { icon: '💬', label: '沟通协调', value: '优秀' },
-    { icon: '📈', label: '项目管理', value: '良好' },
-    { icon: '🔍', label: '问题分析', value: '优秀' },
+    { icon: '💬', label: '专业能力', value: '优秀' },
+    { icon: '📈', label: '项目管理', value: '优秀' },
+    { icon: '🔍', label: '技术研发', value: '优秀' },
     { icon: '🤝', label: '团队协作', value: '良好' },
-    { icon: '💡', label: '创新思维', value: '中等' },
+    { icon: '💡', label: '创新思维', value: '优秀' },
     { icon: '📚', label: '学习能力', value: '优秀' }
   ],
 
@@ -770,109 +776,108 @@ const talentProfile = {
     level: '高潜',
     style: 'background: #e6f0ff; color: #0066b3; border: 1px solid #b3d1ff;',
     indicators: [
-      { label: '成长敏捷性', value: 85 },
-      { label: '业务洞察力', value: 78 },
-      { label: '领导潜质', value: 72 },
-      { label: '变革适应性', value: 80 }
+      { label: '战略思维', value: 85 },
+      { label: '技术创新', value: 92 },
+      { label: '领导潜质', value: 78 },
+      { label: '行业影响', value: 88 }
     ],
-    summary: '具备较强的学习能力和业务理解力，在复杂环境中表现出良好的适应性和问题解决能力，建议加强战略思维和跨部门影响力。'
+    summary: '该专家在智能运维领域创新成果突出，具备显著的行业影响力。建议加强战略思维和跨部门影响力，向战略级专家发展。'
   },
 
   developmentDirections: [
     {
       icon: '📊',
-      name: '人力资源高级专员',
-      timeline: '6-12个月',
+      name: '战略级技术专家',
+      timeline: '12-18个月',
       priority: 1,
       priorityLabel: '优先'
     },
     {
       icon: '👥',
-      name: '团队管理方向',
-      timeline: '12-18个月',
+      name: '技术带头人',
+      timeline: '6-12个月',
       priority: 2,
       priorityLabel: '中期'
     },
     {
       icon: '🏢',
-      name: '人力资源业务伙伴(HRBP)',
+      name: '科研团队负责人',
       timeline: '18-24个月',
       priority: 3,
       priorityLabel: '长期'
     }
   ],
 
-  developmentRecommendation: '建议优先在现有人力资源专业领域深化，同时参与跨部门项目以拓宽业务视野，可考虑担任小型项目负责人锻炼领导能力。',
+  developmentRecommendation: '建议优先在智能运维领域深化技术研究，同时参与公司战略规划编制，加强跨部门技术交流与协作，提升行业影响力。',
 
   successionPlan: {
-    targetPosition: '人力资源部门副经理',
-    readiness: 65,
+    targetPosition: '技术总监/首席专家',
+    readiness: 72,
     estimatedTime: '18-24个月',
     actions: [
-      '完成高级人力资源管理师认证',
-      '主导至少2个跨部门协作项目',
-      '参与公司战略规划相关培训',
-      '完成团队管理基础课程学习',
-      '轮岗至业务部门了解一线需求'
+      '完成战略管理高级研修',
+      '主导1-2个跨部门重大科技项目',
+      '在行业顶级期刊发表论文2-3篇',
+      '培养1-2名技术骨干',
+      '参与国际技术交流会议'
     ]
   }
 }
 
-// 项目经历数据
+// 项目经历数据 - 云南电网实际项目
 const projectList = [
-  { date: '2021.07-2021.09', name: '瑞虹土地资产处置工作专班', role: '项目助理', score: 4.89 },
-  { date: '2020.02-2020.05', name: '瑞虹土地资产处置工作专班', role: '项目助理', score: 4.8 },
-  { date: '2019.03-2019.05', name: '瑞虹土地资产处置工作专班', role: '项目助理', score: 4.89 }
+  { date: '2023.01-2023.12', name: '高压断路器智能运维系统研发与应用', role: '项目负责人', level: '公司级重大' },
+  { date: '2022.06-2023.06', name: '配电物联网边缘智能终端研发', role: '技术负责人', level: '公司级重点' },
+  { date: '2021.03-2022.03', name: '智能变电站巡检机器人技术研究', role: '核心成员', level: '省部级' }
 ]
 
 // 人才评分数据
 const ratings = {
-  personal: '优秀',
-  position: '良好',
-  bench: '称职'
+  professional: '优秀',
+  innovation: '优秀',
+  potential: '高潜'
 }
 
-// 考勤数据
-const attendance = {
-  average: '平均每天考勤9h',
-  data: [6, 8, 9, 10, 9],
-  dates: ['08.20', '08.21', '08.22', '08.23', '08.24']
+// 绩效数据
+const performance = {
+  average: '平均项目绩效：4.8分',
+  data: [4.5, 4.7, 4.8, 4.9, 4.8],
+  dates: ['2023.01', '2023.04', '2023.07', '2023.10', '2024.01']
 }
 
-// 奖惩情况数据
+// 荣誉与奖项数据
 const awardList = [
-  { icon: '🏆', name: 'XXXXXX奖', date: '2021.01.12' },
-  { icon: '🏆', name: 'XXXXXX奖', date: '2020.12.04' },
-  { icon: '🏅', name: 'XXXXXX奖', date: '2021.11.25' },
-  { icon: '🏆', name: 'XXXXXX奖', date: '2021.10.22' }
+  { icon: '🏆', name: '云南省科技进步二等奖', date: '2023.12' },
+  { icon: '🏆', name: '云南电网科技进步三等奖', date: '2023.06' },
+  { icon: '🏅', name: '兴滇英才支持计划', date: '2022.11' },
+  { icon: '🏆', name: '公司优秀创新团队', date: '2022.05' }
 ]
 
 // 培训经历数据
-// 培训经历数据
 const trainingList = [
   {
-    name: '人力资源管理高级研修班',
-    date: '2023.05.21',
+    name: 'AI for Energy专题研修',
+    date: '2024.05',
+    status: '计划中',
+    duration: '3个月'
+  },
+  {
+    name: '战略级专家高级研修班',
+    date: '2023.10',
     status: '已通过',
     duration: '24课时'
   },
   {
-    name: '项目管理实战培训',
-    date: '2023.04.18',
+    name: '新型电力系统技术培训',
+    date: '2023.06',
     status: '已通过',
     duration: '32课时'
   },
   {
-    name: '领导力发展训练营',
-    date: '2023.03.25',
-    status: '进行中',
-    duration: '40课时'
-  },
-  {
-    name: '数据分析与决策支持',
-    date: '2023.02.10',
+    name: '科研项目管理高级培训',
+    date: '2022.12',
     status: '已通过',
-    duration: '20课时'
+    duration: '40课时'
   }
 ]
 
@@ -880,8 +885,8 @@ const trainingList = [
 const getTimelineDotColor = (status) => {
   const colors = {
     '已通过': '#0066b3',
-    '进行中': '#52c41a',
-    '未通过': '#faad14'
+    '计划中': '#faad14',
+    '进行中': '#52c41a'
   }
   return colors[status] || '#999'
 }
@@ -891,26 +896,25 @@ const getStatusClass = (status) => {
   const baseClass = 'status-badge'
   if (status === '已通过') return `${baseClass} status-passed`
   if (status === '进行中') return `${baseClass} status-in-progress`
+  if (status === '计划中') return `${baseClass} status-planned`
   return `${baseClass} status-failed`
 }
 
-// 雷达图数据
-// 在<script setup>中修改雷达图数据
+// 雷达图数据 - 调整为云南电网人才评估维度
 const radarData = {
-  personal: [8, 9, 7, 8, 7],  // 5个值
-  position: [7, 8, 6, 7, 6],   // 5个值
-  bench: [6, 5, 7, 6, 5],      // 5个值
+  professional: [9, 8, 9, 8, 7],  // 专业能力、技术研发、项目管理、团队协作、学习能力
+  innovation: [8, 9, 8, 7, 8],     // 创新思维、技术突破、专利产出、论文质量、成果转化
+  potential: [8, 9, 7, 8, 9],      // 成长敏捷性、战略思维、领导潜质、变革适应性、行业影响
   indicators: [
-    { name: '专业能力', max: 10 },
-    { name: '沟通协调', max: 10 },
+    { name: '专业深度', max: 10 },
+    { name: '技术研发', max: 10 },
+    { name: '项目管理', max: 10 },
     { name: '团队协作', max: 10 },
-    { name: '学习能力', max: 10 },
-    { name: '创新能力', max: 10 }
+    { name: '学习能力', max: 10 }
   ]
 }
 
 // 初始化图表
-// 在onMounted()中修改雷达图配置
 onMounted(() => {
   // 处理雷达图指标名称 - 确保文字显示完整
   const radarIndicatorsWithLineBreak = radarData.indicators.map(item => {
@@ -1014,28 +1018,48 @@ onMounted(() => {
     }
   };
 
-  // 雷达图1 - 个人能力自评
+  // 雷达图1 - 专业能力评估
   const radar1 = echarts.init(document.getElementById('radar1'))
   const radar1Option = JSON.parse(JSON.stringify(radarOption))
-  radar1Option.series[0].data[0].value = radarData.personal
+  radar1Option.series[0].data[0].value = radarData.professional
   radar1Option.series[0].data[0].areaStyle.color = 'rgba(0, 102, 179, 0.2)'
   radar1.setOption(radar1Option)
 
-  // 雷达图2 - 岗位胜任力
+  // 雷达图2 - 创新能力评估
   const radar2 = echarts.init(document.getElementById('radar2'))
   const radar2Option = JSON.parse(JSON.stringify(radarOption))
-  radar2Option.series[0].data[0].value = radarData.position
+  radar2Option.radar.indicator = [
+    { name: '创新思维', max: 10 },
+    { name: '技术突破', max: 10 },
+    { name: '专利产出', max: 10 },
+    { name: '论文质量', max: 10 },
+    { name: '成果转化', max: 10 }
+  ].map(item => ({
+    ...item,
+    name: item.name.length === 4 ? item.name.substring(0, 2) + '\n' + item.name.substring(2) : item.name
+  }))
+  radar2Option.series[0].data[0].value = radarData.innovation
   radar2Option.series[0].data[0].areaStyle.color = 'rgba(0, 102, 179, 0.15)'
   radar2.setOption(radar2Option)
 
-  // 雷达图3 - 板凳数据
+  // 雷达图3 - 发展潜力评估
   const radar3 = echarts.init(document.getElementById('radar3'))
   const radar3Option = JSON.parse(JSON.stringify(radarOption))
-  radar3Option.series[0].data[0].value = radarData.bench
+  radar3Option.radar.indicator = [
+    { name: '成长敏捷性', max: 10 },
+    { name: '战略思维', max: 10 },
+    { name: '领导潜质', max: 10 },
+    { name: '变革适应', max: 10 },
+    { name: '行业影响', max: 10 }
+  ].map(item => ({
+    ...item,
+    name: item.name.length === 4 ? item.name.substring(0, 2) + '\n' + item.name.substring(2) : item.name
+  }))
+  radar3Option.series[0].data[0].value = radarData.potential
   radar3Option.series[0].data[0].areaStyle.color = 'rgba(0, 102, 179, 0.1)'
   radar3.setOption(radar3Option)
 
-  // 关系图 - 调整为更紧凑的布局
+  // 关系图 - 调整为云南电网人才关系
   const network = echarts.init(document.getElementById('network'))
   network.setOption({
     backgroundColor: '#fff',
@@ -1052,19 +1076,21 @@ onMounted(() => {
       edgeSymbol: ['circle', 'arrow'],
       edgeSymbolSize: [2, 6],
       data: [
-        { name: '我', symbolSize: 16, itemStyle: { color: '#0066b3' } },
-        { name: '同楼层', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
-        { name: '同出图', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
-        { name: '同亲属', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
-        { name: '同校', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
-        { name: '同事', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } }
+        { name: '张三', symbolSize: 16, itemStyle: { color: '#0066b3' } },
+        { name: '王五', symbolSize: 12, itemStyle: { color: '#0088cc', opacity: 0.8 } },
+        { name: '李四', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
+        { name: '杨政', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
+        { name: '冯勇', symbolSize: 10, itemStyle: { color: '#0066b3', opacity: 0.7 } },
+        { name: '智能运维团队', symbolSize: 12, itemStyle: { color: '#0088cc', opacity: 0.8 } }
       ],
       links: [
-        { source: '我', target: '同楼层' },
-        { source: '我', target: '同出图' },
-        { source: '我', target: '同亲属' },
-        { source: '我', target: '同校' },
-        { source: '我', target: '同事' }
+        { source: '张三', target: '王五' },
+        { source: '张三', target: '李四' },
+        { source: '张三', target: '杨政' },
+        { source: '张三', target: '冯勇' },
+        { source: '张三', target: '智能运维团队' },
+        { source: '智能运维团队', target: '王五' },
+        { source: '智能运维团队', target: '李四' }
       ],
       label: {
         show: true,
@@ -1089,21 +1115,22 @@ onMounted(() => {
     }]
   })
 
-  // 考勤折线图
-  const attendanceLine = echarts.init(document.getElementById('attendance-line'))
-  attendanceLine.setOption({
+  // 绩效趋势折线图
+  const performanceLine = echarts.init(document.getElementById('performance-line'))
+  performanceLine.setOption({
     backgroundColor: '#fff',
     grid: { top: 15, bottom: 25, left: 25, right: 10 },
     xAxis: {
       type: 'category',
-      data: attendance.dates,
+      data: performance.dates,
       axisLine: { lineStyle: { color: '#e6f0ff' } },
       axisLabel: { fontSize: 11, color: '#999' },
       axisTick: { show: false }
     },
     yAxis: {
       type: 'value',
-      max: 12,
+      max: 5,
+      min: 4,
       show: true,
       axisLine: { lineStyle: { color: '#e6f0ff' } },
       axisLabel: { fontSize: 11, color: '#999' },
@@ -1111,7 +1138,7 @@ onMounted(() => {
     },
     series: [{
       type: 'line',
-      data: attendance.data,
+      data: performance.data,
       areaStyle: { color: 'rgba(0, 102, 179, 0.1)' },
       lineStyle: { color: '#0066b3', width: 1.5 },
       itemStyle: { color: '#0066b3', borderColor: '#fff', borderWidth: 1.5 },
@@ -1119,7 +1146,13 @@ onMounted(() => {
       symbolSize: 5,
       smooth: true
     }],
-    tooltip: { trigger: 'axis', textStyle: { fontSize: 11 } }
+    tooltip: {
+      trigger: 'axis',
+      textStyle: { fontSize: 11 },
+      formatter: function(params) {
+        return `项目绩效: ${params[0].value}分<br/>时间: ${params[0].name}`;
+      }
+    }
   })
 })
 </script>
@@ -1875,10 +1908,16 @@ onMounted(() => {
   border: 1px solid rgba(82, 196, 26, 0.2);
 }
 
-.status-failed {
+.status-planned {
   background: rgba(250, 173, 20, 0.08);
   color: #faad14;
   border: 1px solid rgba(250, 173, 20, 0.2);
+}
+
+.status-failed {
+  background: rgba(255, 77, 79, 0.08);
+  color: #ff4d4f;
+  border: 1px solid rgba(255, 77, 79, 0.2);
 }
 
 </style>

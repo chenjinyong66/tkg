@@ -1,998 +1,1447 @@
 <template>
-  <div class="talent-files">
-    <!-- 文件管理头部 -->
-    <div class="files-header">
-      <div class="header-left">
-        <h2>考核文件管理</h2>
-        <div class="file-stats">
-          <span class="stat-item">共 {{ totalFiles }} 个文件</span>
-          <span class="stat-item">{{ parsedCount }} 个已解析</span>
-          <span class="stat-item">{{ graphCount }} 个已抽取图谱</span>
-        </div>
-      </div>
-      <div class="header-right">
-        <a-button type="primary" @click="showUploadModal">
-          <UploadOutlined />
-          上传文件
-        </a-button>
-        <a-dropdown>
-          <a-button>
-            批量操作 <DownOutlined />
+  <div class="file-table-container">
+    <div class="panel-header">
+      <div class="upload-btn-group">
+        <a-dropdown trigger="click">
+          <a-button type="primary" size="small" class="upload-btn">
+            <FileUp size="14" style="margin-left: 4px;" />
+            上传
+            <ChevronDown size="14" style="margin-left: 4px;" />
           </a-button>
           <template #overlay>
             <a-menu>
-              <a-menu-item @click="handleBatchUpload">
-                <UploadOutlined /> 批量上传
+              <a-menu-item key="upload-file" @click="showAddFilesModal({ isFolder: false })" :icon="h(FileUp, { size: 16 })">
+                上传文件
               </a-menu-item>
-              <a-menu-item @click="handleBatchParse" :disabled="selectedFiles.length === 0">
-                <CodeOutlined /> 批量解析
-              </a-menu-item>
-              <a-menu-item @click="handleBatchDelete" :disabled="selectedFiles.length === 0" danger>
-                <DeleteOutlined /> 批量删除
+              <a-menu-item key="upload-folder" @click="showAddFilesModal({ isFolder: true })" :icon="h(FolderUp, { size: 16 })">
+                上传文件夹
               </a-menu-item>
             </a-menu>
           </template>
         </a-dropdown>
-      </div>
-    </div>
 
-    <!-- 工具栏 -->
-    <div class="files-toolbar">
-      <div class="toolbar-left">
-        <a-input-search
-            v-model:value="searchKeyword"
-            placeholder="搜索文件名..."
-            style="width: 200px"
-            @search="handleSearch"
-            allow-clear
-        />
-        <a-select
-            v-model:value="fileTypeFilter"
-            placeholder="文件类型"
-            style="width: 120px; margin-left: 8px;"
-            allow-clear
-            @change="handleFilter"
-        >
-          <a-select-option value="pdf">PDF</a-select-option>
-          <a-select-option value="doc">Word</a-select-option>
-          <a-select-option value="xls">Excel</a-select-option>
-          <a-select-option value="txt">文本</a-select-option>
-          <a-select-option value="md">Markdown</a-select-option>
-        </a-select>
-        <a-select
-            v-model:value="statusFilter"
-            placeholder="解析状态"
-            style="width: 120px; margin-left: 8px;"
-            allow-clear
-            @change="handleFilter"
-        >
-          <a-select-option value="parsed">已解析</a-select-option>
-          <a-select-option value="unparsed">未解析</a-select-option>
-          <a-select-option value="error">解析失败</a-select-option>
-        </a-select>
+        <a-button class="panel-action-btn" type="text" size="small" @click="showCreateFolderModal" title="新建文件夹">
+          <template #icon><FolderPlus size="16" /></template>
+        </a-button>
       </div>
-      <div class="toolbar-right">
-        <a-tooltip title="列表视图">
-          <a-button
-              :type="viewMode === 'list' ? 'primary' : 'text'"
-              @click="viewMode = 'list'"
-          >
-            <UnorderedListOutlined />
-          </a-button>
-        </a-tooltip>
-        <a-tooltip title="网格视图">
-          <a-button
-              :type="viewMode === 'grid' ? 'primary' : 'text'"
-              @click="viewMode = 'grid'"
-              style="margin-left: 4px;"
-          >
-            <AppstoreOutlined />
-          </a-button>
-        </a-tooltip>
-      </div>
-    </div>
-
-    <!-- 文件列表 -->
-    <div class="files-content">
-      <!-- 网格视图 -->
-      <div v-if="viewMode === 'grid' && filteredFiles.length > 0" class="files-grid">
-        <div
-            v-for="file in filteredFiles"
-            :key="file.id"
-            class="file-card"
-            :class="{
-            'selected': selectedFiles.includes(file.id),
-            'parsed': file.parsed,
-            'error': file.parseError
-          }"
-            @click="toggleSelectFile(file.id)"
+      <div class="panel-actions">
+        <a-input
+            v-model:value="filenameFilter"
+            placeholder="搜索"
+            size="small"
+            class="action-searcher"
+            allow-clear
+            @change="onFilterChange"
         >
-          <div class="card-checkbox">
-            <a-checkbox
-                :checked="selectedFiles.includes(file.id)"
-                @click.stop="toggleSelectFile(file.id)"
-            />
-          </div>
-          <div class="card-content" @click="viewFileDetail(file)">
-            <div class="file-header">
-              <div class="file-type-icon" :class="getFileTypeClass(file.fileType)">
-                {{ getFileTypeIcon(file.fileType) }}
-              </div>
-              <div class="file-actions">
-                <a-dropdown :trigger="['click']" placement="bottomRight">
-                  <a-button type="text" size="small" @click.stop>
-                    <MoreOutlined />
-                  </a-button>
-                  <template #overlay>
-                    <a-menu>
-                      <a-menu-item @click.stop="downloadFile(file)">
-                        <DownloadOutlined />
-                        下载
-                      </a-menu-item>
-                      <a-menu-item @click.stop="parseFile(file)">
-                        <CodeOutlined />
-                        {{ file.parsed ? '重新解析' : '解析内容' }}
-                      </a-menu-item>
-                      <a-menu-item @click.stop="renameFile(file)">
-                        <EditOutlined />
-                        重命名
-                      </a-menu-item>
-                      <a-menu-divider />
-                      <a-menu-item @click.stop="deleteFile(file)" danger>
-                        <DeleteOutlined />
-                        删除
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                </a-dropdown>
-              </div>
-            </div>
-            <div class="file-info">
-              <div class="file-name" :title="file.filename">
-                {{ truncateText(file.filename, 20) }}
-              </div>
-              <div class="file-meta">
-                <div class="meta-item">
-                  <FieldTimeOutlined />
-                  {{ formatRelativeTime(file.uploadTime) }}
-                </div>
-                <div class="meta-item">
-                  <DatabaseOutlined />
-                  {{ formatFileSize(file.fileSize) }}
-                </div>
-              </div>
-            </div>
-            <div class="file-status">
-              <a-tag :color="getFileStatusColor(file)" size="small">
-                {{ getFileStatusLabel(file) }}
-              </a-tag>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 列表视图 -->
-      <div v-else-if="viewMode === 'list' && filteredFiles.length > 0" class="files-table">
-        <a-table
-            :data-source="filteredFiles"
-            :columns="tableColumns"
-            :row-selection="rowSelection"
-            :pagination="false"
-            size="middle"
-            row-key="id"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'filename'">
-              <div class="file-cell" @click="viewFileDetail(record)">
-                <div class="file-type-icon-small" :class="getFileTypeClass(record.fileType)">
-                  {{ getFileTypeIcon(record.fileType).charAt(0) }}
-                </div>
-                <div class="file-name-wrapper">
-                  <div class="file-name">{{ record.filename }}</div>
-                  <div class="file-description" v-if="record.description">
-                    {{ record.description }}
-                  </div>
-                </div>
-              </div>
-            </template>
-            <template v-if="column.key === 'status'">
-              <a-tag :color="getFileStatusColor(record)" size="small">
-                {{ getFileStatusLabel(record) }}
-              </a-tag>
-            </template>
-            <template v-if="column.key === 'actions'">
-              <div class="action-buttons">
-                <a-tooltip title="查看">
-                  <a-button type="link" size="small" @click="viewFileDetail(record)">
-                    <EyeOutlined />
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="解析">
-                  <a-button
-                      type="link"
-                      size="small"
-                      @click="parseFile(record)"
-                      :disabled="isTextFile(record.fileType)"
-                  >
-                    <CodeOutlined />
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="下载">
-                  <a-button type="link" size="small" @click="downloadFile(record)">
-                    <DownloadOutlined />
-                  </a-button>
-                </a-tooltip>
-                <a-tooltip title="删除">
-                  <a-popconfirm
-                      title="确定要删除这个文件吗？"
-                      @confirm="deleteFile(record)"
-                  >
-                    <a-button type="link" size="small" danger>
-                      <DeleteOutlined />
-                    </a-button>
-                  </a-popconfirm>
-                </a-tooltip>
-              </div>
-            </template>
+          <template #prefix>
+            <Search size="14" style="color: var(--gray-400);" />
           </template>
-        </a-table>
-      </div>
+        </a-input>
 
-      <!-- 空状态 -->
-      <div v-else class="empty-files">
-        <Empty description="暂无文件" />
-        <div class="empty-actions">
-          <a-button type="primary" @click="showUploadModal">
-            <UploadOutlined />
-            上传第一个文件
+        <a-dropdown trigger="click">
+          <a-button type="text" class="panel-action-btn" title="排序">
+            <template #icon><ArrowUpDown size="16" /></template>
           </a-button>
-          <a-button style="margin-left: 12px;" @click="handleImportSample">
-            <FileAddOutlined />
-            导入示例文件
+          <template #overlay>
+            <a-menu :selectedKeys="[sortField]" @click="handleSortMenuClick">
+              <a-menu-item v-for="opt in sortOptions" :key="opt.value">
+                {{ opt.label }}
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+
+        <a-dropdown trigger="click">
+          <a-button type="text" class="panel-action-btn" :class="{ 'active': statusFilter }" title="筛选状态">
+            <template #icon><Filter size="16" /></template>
           </a-button>
-        </div>
+          <template #overlay>
+            <a-menu :selectedKeys="statusFilter ? [statusFilter] : []" @click="handleStatusMenuClick">
+              <a-menu-item key="all">全部状态</a-menu-item>
+              <a-menu-item v-for="opt in statusOptions" :key="opt.value">
+                {{ opt.label }}
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+
+        <a-button
+            type="text"
+            @click="handleRefresh"
+            :loading="refreshing"
+            title="刷新"
+            class="panel-action-btn"
+        >
+          <template #icon><RotateCw size="16" /></template>
+        </a-button>
+        <a-button
+            type="text"
+            @click="toggleSelectionMode"
+            title="多选"
+            class="panel-action-btn"
+            :class="{ 'active': isSelectionMode }"
+        >
+          <template #icon><CheckSquare size="16" /></template>
+        </a-button>
+        <!-- <a-button
+          @click="toggleAutoRefresh"
+          size="small"
+          :type="autoRefresh ? 'primary' : 'default'"
+          title="自动刷新文件状态"
+          class="auto-refresh-btn panel-action-btn"
+        >
+          Auto
+        </a-button> -->
+        <a-button
+            type="text"
+            @click="toggleRightPanel"
+            title="切换右侧面板"
+            class="panel-action-btn expand"
+            :class="{ 'expanded': props.rightPanelVisible }"
+        >
+          <template #icon><ChevronLast size="16" /></template>
+        </a-button>
       </div>
     </div>
 
-    <!-- 分页 -->
-    <div class="files-pagination" v-if="filteredFiles.length > 0">
-      <a-pagination
-          v-model:current="currentPage"
-          v-model:pageSize="pageSize"
-          :total="filteredFiles.length"
-          show-size-changer
-          show-quick-jumper
-          @change="handlePageChange"
-          @showSizeChange="handleSizeChange"
+    <div class="batch-actions" v-if="isSelectionMode">
+      <div class="batch-info">
+        <a-checkbox
+            :checked="isAllSelected"
+            :indeterminate="isPartiallySelected"
+            @change="onSelectAllChange"
+            style="margin-right: 8px;"
+        />
+        <span>{{ selectedRowKeys.length }} 项</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <a-button
+            type="link"
+            @click="handleBatchParse"
+            :loading="batchParsing"
+            :disabled="!canBatchParse"
+            :icon="h(FileText, { size: 16 })"
+        >
+          批量解析
+        </a-button>
+        <a-button
+            type="link"
+            @click="handleBatchIndex"
+            :loading="batchIndexing"
+            :disabled="!canBatchIndex"
+            :icon="h(Database, { size: 16 })"
+        >
+          批量入库
+        </a-button>
+        <a-button
+            type="link"
+            danger
+            @click="handleBatchDelete"
+            :loading="batchDeleting"
+            :disabled="!canBatchDelete"
+            :icon="h(Trash2, { size: 16 })"
+        >
+          批量删除
+        </a-button>
+      </div>
+    </div>
+
+    <!-- 入库/重新入库参数配置模态框 -->
+    <a-modal
+        v-model:open="indexConfigModalVisible"
+        :title="indexConfigModalTitle"
+        :confirm-loading="indexConfigModalLoading"
+        width="600px"
+    >
+      <template #footer>
+        <a-button key="back" @click="handleIndexConfigCancel">取消</a-button>
+        <a-button key="submit" type="primary" @click="handleIndexConfigConfirm">确定</a-button>
+      </template>
+      <div class="index-params">
+        <ChunkParamsConfig
+            :temp-chunk-params="indexParams"
+            :show-qa-split="true"
+        />
+      </div>
+    </a-modal>
+
+    <!-- 新建文件夹模态框 -->
+    <a-modal
+        v-model:open="createFolderModalVisible"
+        title="新建文件夹"
+        :confirm-loading="createFolderLoading"
+        @ok="handleCreateFolder"
+    >
+      <a-input
+          v-model:value="newFolderName"
+          placeholder="请输入文件夹名称"
+          @pressEnter="handleCreateFolder"
       />
-    </div>
+    </a-modal>
 
-    <!-- 上传模态框 -->
-    <FileUploadModal
-        v-model:open="showUpload"
-        :talent-id="talentId"
-        @upload-success="handleUploadSuccess"
-    />
+    <a-table
+        :columns="columnsCompact"
+        :data-source="filteredFiles"
+        row-key="file_id"
+        class="my-table"
+        size="small"
+        :show-header="false"
+        :pagination="false"
+        v-model:expandedRowKeys="expandedRowKeys"
+        :custom-row="customRow"
+        :row-selection="isSelectionMode ? {
+          selectedRowKeys: selectedRowKeys,
+          onChange: onSelectChange,
+          getCheckboxProps: getCheckboxProps
+        } : null"
+        :locale="{
+          emptyText: emptyText
+        }">
+      <template #bodyCell="{ column, text, record }">
+        <div v-if="column.key === 'filename'">
+          <template v-if="record.is_folder">
+            <span class="folder-row" @click="toggleExpand(record)">
+              <component :is="expandedRowKeys.includes(record.file_id) ? h(FolderOpenFilled) : h(FolderFilled)" style="margin-right: 12px; color: #ffb800;" />
+              {{ record.filename }}
+            </span>
+          </template>
+          <a-popover v-else placement="right" overlayClassName="file-info-popover" :mouseEnterDelay="0.5">
+            <template #content>
+              <div class="file-info-card">
+                <div class="info-row"><span class="label">ID:</span> <span class="value">{{ record.file_id }}</span></div>
+                <div class="info-row"><span class="label">状态:</span> <span class="value">{{ getStatusText(record.status) }}</span></div>
+                <div class="info-row"><span class="label">时间:</span> <span class="value">{{ formatRelativeTime(record.created_at) }}</span></div>
+                <div v-if="record.error_message" class="info-row error"><span class="label">错误:</span> <span class="value">{{ record.error_message }}</span></div>
+              </div>
+            </template>
+            <a-button class="main-btn" type="link" @click="openFileDetail(record)">
+              <component :is="getFileIcon(record.displayName || text)" :style="{ marginRight: '6px', color: getFileIconColor(record.displayName || text) }" />
+              {{ record.displayName || text }}
+            </a-button>
+          </a-popover>
+        </div>
+        <span v-else-if="column.key === 'type'">
+           <span v-if="!record.is_folder" :class="['span-type', text]">{{ text?.toUpperCase() }}</span>
+        </span>
+        <div v-else-if="column.key === 'status'" style="display: flex; align-items: center; justify-content: flex-end;">
+          <template v-if="!record.is_folder">
+            <a-tooltip :title="getStatusText(text)">
+              <span v-if="text === 'done' || text === 'indexed'" style="color: var(--color-success-500);"><CheckCircleFilled /></span>
+              <span v-else-if="text === 'failed' || text === 'error_parsing' || text === 'error_indexing'" style="color: var(--color-error-500);"><CloseCircleFilled /></span>
+              <span v-else-if="text === 'processing' || text === 'parsing' || text === 'indexing'" style="color: var(--color-info-500);"><HourglassFilled /></span>
+              <span v-else-if="text === 'waiting' || text === 'uploaded'" style="color: var(--color-warning-500);"><ClockCircleFilled /></span>
+              <span v-else-if="text === 'parsed'" style="color: var(--color-primary-500);"><FileTextFilled /></span>
+              <span v-else>{{ text }}</span>
+            </a-tooltip>
+          </template>
+        </div>
+
+        <div v-else-if="column.key === 'action'" class="table-row-actions">
+          <a-popover placement="bottomRight" trigger="click" overlayClassName="file-action-popover" v-model:open="popoverVisibleMap[record.file_id]">
+            <template #content>
+              <div class="file-action-list">
+                <template v-if="record.is_folder">
+                  <a-button type="text" block @click="showCreateFolderModal(record.file_id)">
+                    <template #icon><component :is="h(FolderPlus)" size="14" /></template>
+                    新建子文件夹
+                  </a-button>
+                  <a-button type="text" block danger @click="handleDeleteFolder(record)">
+                    <template #icon><component :is="h(Trash2)" size="14" /></template>
+                    删除文件夹
+                  </a-button>
+                </template>
+                <template v-else>
+                  <a-button type="text" block @click="handleDownloadFile(record)" :disabled="lock || !['done', 'indexed', 'parsed', 'error_indexing'].includes(record.status)">
+                    <template #icon><component :is="h(Download)" size="14" /></template>
+                    下载文件
+                  </a-button>
+
+                  <!-- Parse Action -->
+                  <a-button v-if="record.status === 'uploaded' || record.status === 'error_parsing'" type="text" block @click="handleParseFile(record)" :disabled="lock">
+                    <template #icon><component :is="h(FileText)" size="14" /></template>
+                    {{ record.status === 'error_parsing' ? '重试解析' : '解析文件' }}
+                  </a-button>
+
+                  <!-- Index Action -->
+                  <a-button v-if="record.status === 'parsed' || record.status === 'error_indexing'" type="text" block @click="handleIndexFile(record)" :disabled="lock">
+                    <template #icon><component :is="h(Database)" size="14" /></template>
+                    {{ record.status === 'error_indexing' ? '重试入库' : '入库' }}
+                  </a-button>
+
+                  <!-- Reindex Action -->
+                  <a-button v-if="!isLightRAG && (record.status === 'done' || record.status === 'indexed')" type="text" block @click="handleReindexFile(record)" :disabled="lock">
+                    <template #icon><component :is="h(RotateCw)" size="14" /></template>
+                    重新入库
+                  </a-button>
+
+                  <a-button type="text" block danger @click="handleDeleteFile(record.file_id)" :disabled="lock || ['processing', 'parsing', 'indexing'].includes(record.status)">
+                    <template #icon><component :is="h(Trash2)" size="14" /></template>
+                    删除文件
+                  </a-button>
+                </template>
+              </div>
+            </template>
+            <a-button type="text" :icon="h(Ellipsis)" class="action-trigger-btn" />
+          </a-popover>
+        </div>
+        <span v-else>{{ text }}</span>
+      </template>
+    </a-table>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { message, Modal } from 'ant-design-vue'
-import { h } from 'vue'
+import { ref, computed, watch, h } from 'vue';
+import { useDatabaseStore } from '@/stores/database';
+import { message, Modal } from 'ant-design-vue';
+import { useUserStore } from '@/stores/user';
+import { documentApi } from '@/apis/knowledge_api';
 import {
-  UploadOutlined, DownOutlined, CodeOutlined,
-  DeleteOutlined, UnorderedListOutlined, AppstoreOutlined,
-  MoreOutlined, DownloadOutlined, EditOutlined,
-  EyeOutlined, FieldTimeOutlined, DatabaseOutlined,
-  FileAddOutlined
-} from '@ant-design/icons-vue'
-import { Empty } from 'ant-design-vue'
-import FileUploadModal from '@/components/FileUploadModal.vue';
+  CheckCircleFilled,
+  HourglassFilled,
+  CloseCircleFilled,
+  ClockCircleFilled,
+  FolderFilled,
+  FolderOpenFilled,
+  FileTextFilled,
+} from '@ant-design/icons-vue';
+import {
+  Trash2,
+  Download,
+  RotateCw,
+  ChevronLast,
+  Ellipsis,
+  FolderPlus,
+  CheckSquare,
+  FileText,
+  FileCheck,
+  Plus,
+  Database,
+  FileUp,
+  FolderUp,
+  Search,
+  Filter,
+  ArrowUpDown,
+  ChevronDown,
+} from 'lucide-vue-next';
 
-import { talentApi } from '@/apis/talent_api'
-import dayjs from 'dayjs'
+const store = useDatabaseStore();
+const userStore = useUserStore();
 
-const router = useRouter()
-const route = useRoute()
-const talentId = route.params.id
+const sortField = ref('filename');
+const sortOptions = [
+  { label: '文件名', value: 'filename' },
+  { label: '创建时间', value: 'created_at' },
+  { label: '状态', value: 'status' },
+];
 
-// 响应式数据
-const files = ref([])
-const searchKeyword = ref('')
-const fileTypeFilter = ref(null)
-const statusFilter = ref(null)
-const viewMode = ref('grid')
-const selectedFiles = ref([])
-const currentPage = ref(1)
-const pageSize = ref(12)
-const showUpload = ref(false)
+const handleSortMenuClick = (e) => {
+  sortField.value = e.key;
+};
 
-const state = reactive({
-  loading: false,
-  renameInput: ''
-})
-
-// 计算属性
-const totalFiles = computed(() => files.value.length)
-
-const parsedCount = computed(() => {
-  return files.value.filter(file => file.parsed).length
-})
-
-const graphCount = computed(() => {
-  return files.value.filter(file => file.graphExtracted).length
-})
-
-const filteredFiles = computed(() => {
-  let filtered = files.value
-
-  // 搜索过滤
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    filtered = filtered.filter(file =>
-        file.filename.toLowerCase().includes(keyword) ||
-        file.description?.toLowerCase().includes(keyword)
-    )
-  }
-
-  // 文件类型过滤
-  if (fileTypeFilter.value) {
-    filtered = filtered.filter(file => file.fileType === fileTypeFilter.value)
-  }
-
-  // 状态过滤
-  if (statusFilter.value) {
-    switch (statusFilter.value) {
-      case 'parsed':
-        filtered = filtered.filter(file => file.parsed)
-        break
-      case 'unparsed':
-        filtered = filtered.filter(file => !file.parsed && !isTextFile(file.fileType))
-        break
-      case 'error':
-        filtered = filtered.filter(file => file.parseError)
-        break
-    }
-  }
-
-  // 分页
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filtered.slice(start, end)
-})
-
-const rowSelection = computed(() => ({
-  selectedRowKeys: selectedFiles.value,
-  onChange: (selectedRowKeys) => {
-    selectedFiles.value = selectedRowKeys
-  }
-}))
-
-const tableColumns = computed(() => [
-  {
-    title: '文件名',
-    key: 'filename',
-    width: 300
-  },
-  {
-    title: '文件类型',
-    key: 'fileType',
-    width: 100
-  },
-  {
-    title: '文件大小',
-    key: 'fileSize',
-    width: 100
-  },
-  {
-    title: '解析状态',
-    key: 'status',
-    width: 100
-  },
-  {
-    title: '上传时间',
-    key: 'uploadTime',
-    width: 150
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 120
-  }
-])
-
-// 工具函数
-const formatFileSize = (size) => {
-  if (!size) return '未知'
-  if (size < 1024) return size + ' B'
-  else if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB'
-  else return (size / (1024 * 1024)).toFixed(1) + ' MB'
-}
-
-const formatRelativeTime = (dateTime) => {
-  if (!dateTime) return ''
-  return dayjs(dateTime).fromNow()
-}
-
-const truncateText = (text, maxLength) => {
-  if (!text) return ''
-  if (text.length <= maxLength) return text
-  return text.substring(0, maxLength) + '...'
-}
-
-const getFileTypeIcon = (type) => {
-  const icons = {
-    pdf: 'PDF',
-    doc: 'DOC',
-    docx: 'DOCX',
-    xls: 'XLS',
-    xlsx: 'XLSX',
-    txt: 'TXT',
-    md: 'MD'
-  }
-  return icons[type?.toLowerCase()] || 'FILE'
-}
-
-const getFileTypeClass = (type) => {
-  const classes = {
-    pdf: 'pdf',
-    doc: 'word',
-    docx: 'word',
-    xls: 'excel',
-    xlsx: 'excel',
-    txt: 'text',
-    md: 'markdown'
-  }
-  return classes[type?.toLowerCase()] || 'default'
-}
-
-const getFileStatusColor = (file) => {
-  if (file.parseError) return 'error'
-  if (file.parsed) return 'success'
-  if (isTextFile(file.fileType)) return 'processing'
-  return 'default'
-}
-
-const getFileStatusLabel = (file) => {
-  if (file.parseError) return '解析失败'
-  if (file.parsed) return '已解析'
-  if (isTextFile(file.fileType)) return '可直接查看'
-  return '待解析'
-}
-
-const isTextFile = (fileType) => {
-  const textTypes = ['txt', 'md']
-  return textTypes.includes(fileType?.toLowerCase())
-}
-
-// 业务函数
-const loadFiles = async () => {
-  state.loading = true
-  try {
-    const response = await talentApi.getTalentFilesByTalent(talentId)
-    files.value = response.files || []
-  } catch (error) {
-    console.error('加载文件列表失败:', error)
-    message.error('加载文件列表失败')
-  } finally {
-    state.loading = false
-  }
-}
-
-const showUploadModal = () => {
-  showUpload.value = true
-}
-
-const handleSearch = () => {
-  currentPage.value = 1
-}
-
-const handleFilter = () => {
-  currentPage.value = 1
-}
-
-const toggleSelectFile = (fileId) => {
-  const index = selectedFiles.value.indexOf(fileId)
-  if (index === -1) {
-    selectedFiles.value.push(fileId)
+const handleStatusMenuClick = (e) => {
+  if (e.key === 'all') {
+    statusFilter.value = null;
   } else {
-    selectedFiles.value.splice(index, 1)
+    statusFilter.value = e.key;
   }
-}
+};
 
-const viewFileDetail = (file) => {
-  router.push(`/talent/${talentId}/files/${file.id}`)
-}
+// Status text mapping
+const getStatusText = (status) => {
+  const map = {
+    'uploaded': '已上传',
+    'parsing': '解析中',
+    'parsed': '已解析',
+    'error_parsing': '解析失败',
+    'indexing': '入库中',
+    'indexed': '已入库',
+    'error_indexing': '入库失败',
+    'done': '已入库',
+    'failed': '入库失败',
+    'processing': '处理中',
+    'waiting': '等待中',
+  };
+  return map[status] || status;
+};
 
-const downloadFile = async (file) => {
+const props = defineProps({
+  rightPanelVisible: {
+    type: Boolean,
+    default: true
+  },
+});
+
+const emit = defineEmits([
+  'showAddFilesModal',
+  'toggleRightPanel',
+]);
+
+const files = computed(() => Object.values(store.database.files || {}));
+const isLightRAG = computed(() => store.database?.kb_type?.toLowerCase() === 'lightrag');
+const refreshing = computed(() => store.state.refrashing);
+const lock = computed(() => store.state.lock);
+const batchDeleting = computed(() => store.state.batchDeleting);
+const batchParsing = computed(() => store.state.chunkLoading);
+const batchIndexing = computed(() => store.state.chunkLoading);
+const autoRefresh = computed(() => store.state.autoRefresh);
+const selectedRowKeys = computed({
+  get: () => store.selectedRowKeys,
+  set: (keys) => store.selectedRowKeys = keys,
+});
+
+const isSelectionMode = ref(false);
+
+const allSelectableFiles = computed(() => {
+  const nameFilter = filenameFilter.value.trim().toLowerCase();
+  const status = statusFilter.value;
+
+  return files.value.filter(file => {
+    if (file.is_folder) return false;
+    // Follow getCheckboxProps logic
+    if (lock.value || file.status === 'processing' || file.status === 'waiting') return false;
+
+    if (nameFilter || status) {
+      const nameMatch = !nameFilter || (file.filename && file.filename.toLowerCase().includes(nameFilter));
+      const statusMatch = !status || file.status === status ||
+          (status === 'indexed' && file.status === 'done') ||
+          (status === 'error_indexing' && file.status === 'failed');
+      return nameMatch && statusMatch;
+    }
+    return true;
+  });
+});
+
+const isAllSelected = computed(() => {
+  const selectableIds = allSelectableFiles.value.map(f => f.file_id);
+  if (selectableIds.length === 0) return false;
+  return selectableIds.every(id => selectedRowKeys.value.includes(id));
+});
+
+const isPartiallySelected = computed(() => {
+  const selectableIds = allSelectableFiles.value.map(f => f.file_id);
+  const selectedCount = selectableIds.filter(id => selectedRowKeys.value.includes(id)).length;
+  return selectedCount > 0 && selectedCount < selectableIds.length;
+});
+
+const onSelectAllChange = (e) => {
+  if (e.target.checked) {
+    selectedRowKeys.value = allSelectableFiles.value.map(f => f.file_id);
+  } else {
+    selectedRowKeys.value = [];
+  }
+};
+
+const expandedRowKeys = ref([]);
+
+const popoverVisibleMap = ref({});
+const closePopover = (fileId) => {
+  if (fileId) {
+    popoverVisibleMap.value[fileId] = false;
+  }
+};
+
+// 新建文件夹相关
+const createFolderModalVisible = ref(false);
+const newFolderName = ref('');
+const createFolderLoading = ref(false);
+const currentParentId = ref(null);
+
+const showCreateFolderModal = (parentId = null) => {
+  if (typeof parentId === 'string') {
+    closePopover(parentId);
+  }
+  newFolderName.value = '';
+  // 如果是事件对象（来自顶部按钮点击），则设为null
+  if (parentId && typeof parentId === 'object') {
+    parentId = null;
+  }
+  currentParentId.value = parentId;
+  createFolderModalVisible.value = true;
+};
+
+const toggleExpand = (record) => {
+  if (!record.is_folder) return;
+
+  const index = expandedRowKeys.value.indexOf(record.file_id);
+  if (index > -1) {
+    expandedRowKeys.value.splice(index, 1);
+  } else {
+    expandedRowKeys.value.push(record.file_id);
+  }
+};
+
+const toggleSelectionMode = () => {
+  isSelectionMode.value = !isSelectionMode.value;
+  if (!isSelectionMode.value) {
+    selectedRowKeys.value = [];
+  }
+};
+
+const handleCreateFolder = async () => {
+  if (!newFolderName.value.trim()) {
+    message.warning('请输入文件夹名称');
+    return;
+  }
+
+  createFolderLoading.value = true;
   try {
-    const response = await talentApi.downloadTalentFile(file.id)
-    const blob = new Blob([response])
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+    await documentApi.createFolder(store.databaseId, newFolderName.value, currentParentId.value);
+    message.success('创建成功');
+    createFolderModalVisible.value = false;
+    handleRefresh();
   } catch (error) {
-    console.error('下载文件失败:', error)
-    message.error('下载文件失败')
+    console.error(error);
+    message.error('创建失败: ' + (error.message || '未知错误'));
+  } finally {
+    createFolderLoading.value = false;
   }
-}
+};
 
-const parseFile = async (file) => {
-  if (isTextFile(file.fileType)) {
-    message.info('文本文件可直接查看，无需解析')
-    return
-  }
-
-  try {
-    message.loading('正在解析文件...', 0)
-    await talentApi.parseFileToMarkdown(file.id)
-    message.destroy()
-    message.success('文件解析成功')
-
-    // 更新文件状态
-    file.parsed = true
-    file.parseError = false
-  } catch (error) {
-    message.destroy()
-    console.error('解析文件失败:', error)
-    file.parseError = true
-    message.error('解析文件失败')
-  }
-}
-
-const renameFile = (file) => {
-  const renameInput = ref(file.filename)
-
-  Modal.confirm({
-    title: '重命名文件',
-    content: () => h('div', [
-      h('a-input', {
-        value: renameInput.value,
-        'onUpdate:value': (val) => { renameInput.value = val },
-        placeholder: "请输入新文件名",
-        style: { marginTop: '10px', width: '100%' }
-      })
-    ]),
-    onOk: async () => {
-      if (!renameInput.value.trim()) {
-        message.error('文件名不能为空')
-        return
+// 拖拽相关逻辑
+const customRow = (record) => {
+  return {
+    draggable: true,
+    onClick: () => {
+      console.log('Clicked file record:', record);
+    },
+    onDragstart: (event) => {
+      // 检查是否是真实文件/文件夹（存在于 store 中）
+      const files = store.database?.files || {};
+      if (!files[record.file_id]) {
+        event.preventDefault();
+        return;
       }
+
+      event.dataTransfer.setData('application/json', JSON.stringify({
+        file_id: record.file_id,
+        filename: record.filename
+      }));
+      event.dataTransfer.effectAllowed = 'move';
+      // 可以设置一个更好看的拖拽图像
+    },
+    onDragover: (event) => {
+      // 仅允许放置到真实文件夹中
+      if (record.is_folder) {
+        const files = store.database?.files || {};
+        // 确保是真实的文件夹（有 ID 且在 store 中）
+        if (files[record.file_id]) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          event.currentTarget.classList.add('drop-over-folder');
+        }
+      }
+    },
+    onDragleave: (event) => {
+      event.currentTarget.classList.remove('drop-over-folder');
+    },
+    onDrop: async (event) => {
+      event.preventDefault();
+      event.currentTarget.classList.remove('drop-over-folder');
+
+      const data = event.dataTransfer.getData('application/json');
+      if (!data) return;
 
       try {
-        await talentApi.renameTalentFile(file.id, renameInput.value)
-        message.success('文件重命名成功')
-        loadFiles()
-      } catch (error) {
-        message.error('重命名失败')
+        const { file_id, filename } = JSON.parse(data);
+        if (file_id === record.file_id) return;
+
+        // 确认移动
+        Modal.confirm({
+          title: '移动文件',
+          content: `确定要将 "${filename}" 移动到 "${record.filename}" 吗？`,
+          onOk: async () => {
+            try {
+              await store.moveFile(file_id, record.file_id);
+            } catch (error) {
+              // error handled in store
+            }
+          }
+        });
+      } catch (e) {
+        console.error('Drop error:', e);
       }
     }
-  })
-}
+  };
+};
 
-const deleteFile = (file) => {
+// 入库/重新入库参数配置相关
+const indexConfigModalVisible = ref(false);
+const indexConfigModalLoading = computed(() => store.state.chunkLoading);
+const indexConfigModalTitle = ref('入库参数配置');
+
+const indexParams = ref({
+  chunk_size: 1000,
+  chunk_overlap: 200,
+  qa_separator: ''
+});
+const currentIndexFileIds = ref([]);
+const isBatchIndexOperation = ref(false);
+
+// 文件名过滤
+const filenameFilter = ref('');
+const statusFilter = ref(null);
+const statusOptions = [
+  { label: '已上传', value: 'uploaded' },
+  { label: '解析中', value: 'parsing' },
+  { label: '已解析', value: 'parsed' },
+  { label: '解析失败', value: 'error_parsing' },
+  { label: '入库中', value: 'indexing' },
+  { label: '已入库', value: 'indexed' },
+  { label: '入库失败', value: 'error_indexing' },
+];
+
+// 紧凑表格列定义
+const columnsCompact = [
+  {
+    title: '文件名',
+    dataIndex: 'filename',
+    key: 'filename',
+    ellipsis: true,
+    width: undefined, // 不设置宽度，让它占据剩余空间
+    sorter: (a, b) => {
+      if (a.is_folder && !b.is_folder) return -1;
+      if (!a.is_folder && b.is_folder) return 1;
+      return (a.filename || '').localeCompare(b.filename || '');
+    },
+    sortDirections: ['ascend', 'descend']
+  },
+  {
+    title: '状态',
+    dataIndex: 'status',
+    key: 'status',
+    width: 60,
+    align: 'right',
+    sorter: (a, b) => {
+      const statusOrder = {
+        'done': 1, 'indexed': 1,
+        'processing': 2, 'indexing': 2, 'parsing': 2,
+        'waiting': 3, 'uploaded': 3, 'parsed': 3,
+        'failed': 4, 'error_indexing': 4, 'error_parsing': 4
+      };
+      return (statusOrder[a.status] || 5) - (statusOrder[b.status] || 5);
+    },
+    sortDirections: ['ascend', 'descend']
+  },
+  { title: '', key: 'action', dataIndex: 'file_id', width: 40, align: 'center' }
+];
+
+// 构建文件树
+const buildFileTree = (fileList) => {
+  const nodeMap = new Map();
+  const roots = [];
+  const processedIds = new Set();
+
+  // 1. 初始化节点映射，确保 explicit folder 有 children
+  fileList.forEach(file => {
+    const item = { ...file, displayName: file.filename };
+    if (item.is_folder && !item.children) {
+      item.children = [];
+    }
+    nodeMap.set(item.file_id, item);
+  });
+
+  // 2. 处理 parent_id (强关联)
+  fileList.forEach(file => {
+    if (file.parent_id && nodeMap.has(file.parent_id)) {
+      const parent = nodeMap.get(file.parent_id);
+      const child = nodeMap.get(file.file_id);
+      if (parent && child) {
+        if (!parent.children) parent.children = [];
+        parent.children.push(child);
+        processedIds.add(file.file_id);
+      }
+    }
+  });
+
+  // 3. 处理剩余项 (Roots 或 路径解析)
+  fileList.forEach(file => {
+    if (processedIds.has(file.file_id)) return;
+
+    const item = nodeMap.get(file.file_id);
+    const normalizedName = file.filename.replace(/\\/g, '/');
+    const parts = normalizedName.split('/');
+
+    if (parts.length === 1) {
+      // Root item
+      // Check if it's an explicit folder that should merge with an existing implicit one?
+      if (item.is_folder) {
+        const existingIndex = roots.findIndex(n => n.is_folder && n.filename === item.filename);
+        if (existingIndex !== -1) {
+          const existing = roots[existingIndex];
+          // Merge children from implicit to explicit
+          if (existing.children && existing.children.length > 0) {
+            item.children = [...(item.children || []), ...existing.children];
+          }
+          // Replace implicit with explicit
+          roots[existingIndex] = item;
+        } else {
+          roots.push(item);
+        }
+      } else {
+        roots.push(item);
+      }
+    } else {
+      // Path based logic for files like "A/B.txt"
+      let currentLevel = roots;
+      let currentPath = '';
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+        // Find existing node in currentLevel
+        let node = currentLevel.find(n => n.filename === part && n.is_folder);
+
+        if (!node) {
+          node = {
+            file_id: `folder-${currentPath}`,
+            filename: part,
+            displayName: part,
+            is_folder: true,
+            children: [],
+            created_at: file.created_at,
+            status: 'done',
+          };
+          currentLevel.push(node);
+        }
+        currentLevel = node.children;
+      }
+
+      const fileName = parts[parts.length - 1];
+      item.displayName = fileName;
+      currentLevel.push(item);
+    }
+  });
+
+  // 排序：文件夹在前，文件在后，按名称排序
+  const sortNodes = (nodes) => {
+    nodes.sort((a, b) => {
+      if (a.is_folder && !b.is_folder) return -1;
+      if (!a.is_folder && b.is_folder) return 1;
+
+      if (sortField.value === 'filename') {
+        return (a.filename || '').localeCompare(b.filename || '');
+      } else if (sortField.value === 'created_at') {
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      } else if (sortField.value === 'status') {
+        const statusOrder = {
+          'done': 1, 'indexed': 1,
+          'processing': 2, 'indexing': 2, 'parsing': 2,
+          'waiting': 3, 'uploaded': 3, 'parsed': 3,
+          'failed': 4, 'error_indexing': 4, 'error_parsing': 4
+        };
+        return (statusOrder[a.status] || 5) - (statusOrder[b.status] || 5);
+      }
+      return 0;
+    });
+    nodes.forEach(node => {
+      if (node.children) sortNodes(node.children);
+    });
+  };
+
+  sortNodes(roots);
+  return roots;
+};
+
+// 过滤后的文件列表
+const filteredFiles = computed(() => {
+  let filtered = files.value;
+  const nameFilter = filenameFilter.value.trim().toLowerCase();
+  const status = statusFilter.value;
+
+  // 应用过滤
+  if (nameFilter || status) {
+    // 搜索/过滤模式下使用扁平列表
+    return files.value.filter(file => {
+      const nameMatch = !nameFilter || (file.filename && file.filename.toLowerCase().includes(nameFilter));
+      const statusMatch = !status || file.status === status ||
+          (status === 'indexed' && file.status === 'done') ||
+          (status === 'error_indexing' && file.status === 'failed');
+      return nameMatch && statusMatch;
+    }).map(f => ({ ...f, displayName: f.filename }));
+  }
+
+  return buildFileTree(filtered);
+});
+
+// 空状态文本
+const emptyText = computed(() => {
+  return filenameFilter.value ? `没有找到包含"${filenameFilter.value}"的文件` : '暂无文件';
+});
+
+// 计算是否可以批量删除
+const canBatchDelete = computed(() => {
+  return selectedRowKeys.value.some(key => {
+    const file = files.value.find(f => f.file_id === key);
+    return file && !(lock.value || file.status === 'processing' || file.status === 'waiting');
+  });
+});
+
+// 计算是否可以批量解析
+const canBatchParse = computed(() => {
+  return selectedRowKeys.value.some(key => {
+    const file = filteredFiles.value.find(f => f.file_id === key);
+    return file && !lock.value && (file.status === 'uploaded' || file.status === 'error_parsing');
+  });
+});
+
+// 计算是否可以批量入库
+const canBatchIndex = computed(() => {
+  return selectedRowKeys.value.some(key => {
+    const file = filteredFiles.value.find(f => f.file_id === key);
+    return file && !lock.value && (
+        file.status === 'parsed' ||
+        file.status === 'error_indexing' ||
+        (!isLightRAG.value && (file.status === 'done' || file.status === 'indexed'))
+    );
+  });
+});
+
+const showAddFilesModal = (options = {}) => {
+  emit('showAddFilesModal', options);
+};
+
+const handleRefresh = () => {
+  store.getDatabaseInfo(undefined, true); // Skip query params for manual refresh
+};
+
+const toggleAutoRefresh = () => {
+  store.toggleAutoRefresh();
+};
+
+const toggleRightPanel = () => {
+  console.log(props.rightPanelVisible);
+  emit('toggleRightPanel');
+};
+
+const onSelectChange = (keys, selectedRows) => {
+  // 只保留非文件夹的文件ID
+  const fileKeys = selectedRows
+      .filter(row => !row.is_folder)
+      .map(row => row.file_id);
+
+  selectedRowKeys.value = fileKeys;
+};
+
+const getCheckboxProps = (record) => ({
+  disabled: lock.value || record.status === 'processing' || record.status === 'waiting' || record.is_folder,
+});
+
+const onFilterChange = (e) => {
+  filenameFilter.value = e.target.value;
+};
+
+const handleDeleteFile = (fileId) => {
+  store.handleDeleteFile(fileId);
+  closePopover(fileId);
+};
+
+const handleDeleteFolder = (record) => {
+  closePopover(record.file_id);
   Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除文件 "${file.filename}" 吗？此操作不可恢复。`,
-    okText: '删除',
-    okType: 'danger',
+    title: '删除文件夹',
+    content: `确定要删除文件夹 "${record.filename}" 及其包含的所有内容吗？`,
+    okText: '确认',
     cancelText: '取消',
     onOk: async () => {
       try {
-        await talentApi.deleteTalentFile(file.id)
-        message.success('文件删除成功')
-
-        // 从选中列表中移除
-        const index = selectedFiles.value.indexOf(file.id)
-        if (index > -1) {
-          selectedFiles.value.splice(index, 1)
-        }
-
-        loadFiles()
+        await store.deleteFile(record.file_id);
+        message.success('删除成功');
       } catch (error) {
-        console.error('删除文件失败:', error)
-        message.error('删除文件失败')
+        // Error handled in store but we can add extra handling if needed
       }
-    }
-  })
-}
+    },
+  });
+};
 
-const handleUploadSuccess = () => {
-  showUpload.value = false
-  loadFiles()
-  message.success('文件上传成功')
-}
-
-const handleBatchUpload = () => {
-  message.info('批量上传功能开发中')
+const handleBatchDelete = () => {
+  store.handleBatchDelete();
 }
 
 const handleBatchParse = async () => {
-  if (selectedFiles.value.length === 0) {
-    message.warning('请先选择文件')
-    return
+  const validKeys = selectedRowKeys.value.filter(key => {
+    const file = files.value.find(f => f.file_id === key);
+    return file && (file.status === 'uploaded' || file.status === 'error_parsing');
+  });
+
+  if (validKeys.length === 0) {
+    message.warning('没有可解析的文件');
+    return;
   }
 
-  Modal.confirm({
-    title: '批量解析',
-    content: `确定要批量解析 ${selectedFiles.value.length} 个文件吗？`,
-    okText: '开始解析',
-    cancelText: '取消',
-    onOk: async () => {
-      message.loading(`正在批量解析 ${selectedFiles.value.length} 个文件...`, 0)
+  await store.parseFiles(validKeys);
+  selectedRowKeys.value = [];
+};
 
-      let successCount = 0
-      let failCount = 0
+const handleBatchIndex = async () => {
+  const validKeys = selectedRowKeys.value.filter(key => {
+    const file = files.value.find(f => f.file_id === key);
+    return file && (
+        file.status === 'parsed' ||
+        file.status === 'error_indexing' ||
+        (!isLightRAG.value && (file.status === 'done' || file.status === 'indexed'))
+    );
+  });
 
-      for (const fileId of selectedFiles.value) {
-        const file = files.value.find(f => f.id === fileId)
-        if (file && !isTextFile(file.fileType)) {
+  if (validKeys.length === 0) {
+    message.warning('没有可入库的文件');
+    return;
+  }
+
+  if (isLightRAG.value) {
+    await store.indexFiles(validKeys);
+    selectedRowKeys.value = [];
+    return;
+  }
+
+  currentIndexFileIds.value = [...validKeys];
+  isBatchIndexOperation.value = true;
+  indexConfigModalTitle.value = '批量入库参数配置';
+  indexConfigModalVisible.value = true;
+};
+
+const openFileDetail = (record) => {
+  console.log('openFileDetail', record);
+  store.openFileDetail(record);
+};
+
+const handleDownloadFile = async (record) => {
+  closePopover(record.file_id);
+  const dbId = store.databaseId;
+  if (!dbId) {
+    console.error('无法获取数据库ID，数据库ID:', store.databaseId, '记录:', record);
+    message.error('无法获取数据库ID，请刷新页面后重试');
+    return;
+  }
+
+  console.log('开始下载文件:', { dbId, fileId: record.file_id, record });
+
+  try {
+    const response = await documentApi.downloadDocument(dbId, record.file_id);
+
+    // 获取文件名
+    const contentDisposition = response.headers.get('content-disposition');
+    let filename = record.filename;
+    if (contentDisposition) {
+      // 首先尝试匹配RFC 2231格式 filename*=UTF-8''...
+      const rfc2231Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/);
+      if (rfc2231Match) {
+        try {
+          filename = decodeURIComponent(rfc2231Match[1]);
+        } catch (error) {
+          console.warn('Failed to decode RFC2231 filename:', rfc2231Match[1], error);
+        }
+      } else {
+        // 回退到标准格式 filename="..."
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+          // 解码URL编码的文件名
           try {
-            await talentApi.parseFileToMarkdown(file.id)
-            file.parsed = true
-            file.parseError = false
-            successCount++
+            filename = decodeURIComponent(filename);
           } catch (error) {
-            file.parseError = true
-            failCount++
+            console.warn('Failed to decode filename:', filename, error);
+            // 如果解码失败，使用原文件名
           }
         }
       }
-
-      message.destroy()
-      if (failCount === 0) {
-        message.success(`成功解析 ${successCount} 个文件`)
-      } else {
-        message.warning(`解析完成，成功 ${successCount} 个，失败 ${failCount} 个`)
-      }
     }
-  })
-}
 
-const handleBatchDelete = () => {
-  if (selectedFiles.value.length === 0) {
-    message.warning('请先选择文件')
-    return
+    // 创建blob并下载
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('下载文件时出错:', error);
+    const errorMessage = error.message || '下载失败，请稍后重试';
+    message.error(errorMessage);
+  }
+};
+
+const handleParseFile = async (record) => {
+  closePopover(record.file_id);
+  await store.parseFiles([record.file_id]);
+};
+
+const handleIndexFile = async (record) => {
+  closePopover(record.file_id);
+  if (isLightRAG.value) {
+    await store.indexFiles([record.file_id]);
+    return;
   }
 
-  Modal.confirm({
-    title: '批量删除',
-    content: `确定要删除选中的 ${selectedFiles.value.length} 个文件吗？此操作不可恢复。`,
-    okText: '删除',
-    okType: 'danger',
-    cancelText: '取消',
-    onOk: async () => {
-      try {
-        await talentApi.batchDeleteFiles(selectedFiles.value)
-        message.success(`成功删除 ${selectedFiles.value.length} 个文件`)
-        selectedFiles.value = []
-        loadFiles()
-      } catch (error) {
-        console.error('批量删除失败:', error)
-        message.error('批量删除失败')
-      }
-    }
-  })
-}
+  // 打开参数配置弹窗
+  currentIndexFileIds.value = [record.file_id];
+  isBatchIndexOperation.value = false;
+  indexConfigModalTitle.value = '入库参数配置';
 
-const handleImportSample = () => {
-  message.info('导入示例文件功能开发中')
-}
-
-const handlePageChange = (page) => {
-  currentPage.value = page
-}
-
-const handleSizeChange = (current, size) => {
-  currentPage.value = 1
-  pageSize.value = size
-}
-
-onMounted(() => {
-  loadFiles()
-
-  // 如果URL参数包含upload，显示上传模态框
-  if (route.query.upload === 'true') {
-    showUploadModal()
+  if (record?.processing_params) {
+    Object.assign(indexParams.value, record.processing_params);
+  } else {
+    // Reset to defaults if no existing params
+    Object.assign(indexParams.value, {
+      chunk_size: 1000,
+      chunk_overlap: 200,
+      qa_separator: ''
+    });
   }
-})
+
+  indexConfigModalVisible.value = true;
+};
+
+const handleReindexFile = async (record) => {
+  closePopover(record.file_id);
+  currentIndexFileIds.value = [record.file_id];
+  isBatchIndexOperation.value = false;
+  indexConfigModalTitle.value = '重新入库参数配置';
+
+  if (record?.processing_params) {
+    Object.assign(indexParams.value, record.processing_params);
+  }
+
+  // 显示参数配置模态框
+  indexConfigModalVisible.value = true;
+};
+
+// 入库确认 (统一处理 Index 和 Reindex)
+const handleIndexConfigConfirm = async () => {
+  try {
+    // 调用 indexFiles 接口 (支持 params)
+    const result = await store.indexFiles(currentIndexFileIds.value, indexParams.value);
+    if (result) {
+      currentIndexFileIds.value = [];
+      // 清空选择
+      if (isBatchIndexOperation.value) {
+        selectedRowKeys.value = [];
+      }
+      // 关闭模态框
+      indexConfigModalVisible.value = false;
+
+      // 重置参数为默认值
+      Object.assign(indexParams.value, {
+        chunk_size: 1000,
+        chunk_overlap: 200,
+        qa_separator: ''
+      });
+    } else {
+      // message.error(`入库失败: ${result.message}`); // store already shows message
+    }
+  } catch (error) {
+    console.error('入库失败:', error);
+    const errorMessage = error.message || '入库失败，请稍后重试';
+    message.error(errorMessage);
+  }
+};
+
+// 入库取消
+const handleIndexConfigCancel = () => {
+  indexConfigModalVisible.value = false;
+  currentIndexFileIds.value = [];
+  isBatchIndexOperation.value = false;
+  // 重置参数为默认值
+  Object.assign(indexParams.value, {
+    chunk_size: 1000,
+    chunk_overlap: 200,
+    qa_separator: ''
+  });
+};
+
+// 导入工具函数
+import { getFileIcon, getFileIconColor, formatRelativeTime } from '@/utils/file_utils';
+import { parseToShanghai } from '@/utils/time';
+import ChunkParamsConfig from '@/components/ChunkParamsConfig.vue';
 </script>
 
-<style lang="less" scoped>
-.talent-files {
+<style scoped>
+.file-table-container {
   display: flex;
+  flex-grow: 1;
   flex-direction: column;
-  gap: 24px;
+  max-height: 100%;
+  background: var(--gray-10);
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--gray-150);
+  /* padding-top: 6px; */
 }
 
-.files-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-
-  .header-left {
-    h2 {
-      margin: 0 0 8px 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: #1f1f1f;
-    }
-
-    .file-stats {
-      display: flex;
-      gap: 16px;
-
-      .stat-item {
-        font-size: 14px;
-        color: #666;
-      }
-    }
-  }
-
-  .header-right {
-    display: flex;
-    gap: 8px;
-  }
-}
-
-.files-toolbar {
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  padding: 8px 8px;
+}
 
-  .toolbar-left {
-    display: flex;
-    align-items: center;
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .action-searcher {
+    width: 120px;
+    margin-right: 8px;
+    border-radius: 6px;
+    padding: 4px 8px;
+    border: none;
   }
 }
 
-.files-content {
-  .files-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
+.batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background-color: var(--main-10);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
 
-    .file-card {
-      position: relative;
-      border: 1px solid #f0f0f0;
-      border-radius: 8px;
-      padding: 16px;
-      background: #fff;
-      cursor: pointer;
-      transition: all 0.3s;
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-      &.selected {
-        border-color: #1890ff;
-        background: #e6f7ff;
+.batch-info span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.batch-actions .ant-btn {
+  font-size: 12px;
+  padding: 4px 8px;
+  height: auto;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+
+.my-table {
+  flex: 1;
+  overflow: auto;
+  background-color: transparent;
+  min-height: 0; /* 让 flex 子项可以正确缩小 */
+}
+
+.my-table .main-btn {
+  padding: 0;
+  height: auto;
+  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.my-table .main-btn:hover {
+  cursor: pointer;
+  color: var(--main-color);
+}
+
+
+
+.my-table .del-btn {
+  color: var(--gray-500);
+}
+
+.my-table .download-btn {
+  color: var(--gray-500);
+}
+
+.my-table .download-btn:hover {
+  color: var(--main-color);
+}
+
+.my-table .rechunk-btn {
+  color: var(--gray-500);
+}
+
+/* 统一设置表格操作按钮的图标尺寸 */
+.my-table .table-row-actions {
+  display: flex;
+}
+
+.my-table .table-row-actions button {
+  display: flex;
+  align-items: center;
+}
+
+.my-table .table-row-actions button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.my-table .rechunk-btn:hover {
+  color: var(--color-warning-500);
+}
+
+.my-table .del-btn:hover {
+  color: var(--color-error-500);
+}
+
+.my-table .del-btn:disabled {
+  cursor: not-allowed;
+}
+
+.my-table .span-type {
+  display: inline-block;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--gray-0);
+  border-radius: 4px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.auto-refresh-btn {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.panel-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0 4px;
+  color: var(--gray-700);
+  transition: all 0.1s ease;
+  font-size: 12px;
+
+  svg {
+    height: 16px;
+  }
+
+  &.expand {
+    transform: scaleX(-1);
+  }
+
+  &.expanded {
+    transform: scaleX(1);
+  }
+}
+
+.panel-action-btn.auto-refresh-btn.ant-btn-primary {
+  background-color: var(--main-color);
+  border-color: var(--main-color);
+  color: var(--gray-0);
+}
+
+.panel-action-btn:hover {
+  background-color: var(--gray-50);
+  color: var(--main-color);
+  /* border: 1px solid var(--main-100); */
+}
+
+.panel-action-btn.active {
+  color: var(--main-color);
+  background-color: var(--gray-100);
+  font-weight: 600;
+}
+
+.action-trigger-btn {
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--gray-500);
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: var(--gray-100);
+    color: var(--main-color);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+
+/* Table row selection styling */
+:deep(.ant-table-tbody > tr.ant-table-row-selected > td) {
+  background-color: var(--main-5);
+}
+
+:deep(.ant-table-tbody > tr.ant-table-row-selected.ant-table-row:hover > td) {
+  background-color: var(--main-20);
+}
+
+:deep(.ant-table-tbody > tr:hover > td) {
+  background-color: var(--main-5);
+}
+
+.folder-row {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--main-color);
+  }
+}
+
+:deep(.drop-over-folder) {
+  background-color: var(--primary-50) !important;
+  outline: 2px dashed var(--main-color);
+  outline-offset: -2px;
+  z-index: 10;
+
+  td {
+    background-color: transparent !important;
+  }
+}
+
+.upload-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .upload-btn {
+    height: 28px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+}
+</style>
+
+<style lang="less">
+.file-action-popover {
+  .ant-popover-inner {
+    padding: 4px;
+  }
+
+  .ant-popover-inner {
+    border-radius: 8px;
+    border: 1px solid var(--gray-150);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+  }
+
+  .ant-popover-arrow {
+    display: none;
+  }
+}
+
+.file-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .ant-btn {
+    text-align: left;
+    height: 30px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    padding: 0 8px;
+    border: none;
+    box-shadow: none;
+
+    &:hover {
+      background-color: var(--gray-50);
+      color: var(--main-color);
+    }
+
+    &.ant-btn-dangerous:hover {
+      background-color: var(--color-error-50);
+      color: var(--color-error-500);
+    }
+
+    .anticon, .lucide {
+      margin-right: 10px;
+    }
+
+    span {
+      font-size: 13px;
+    }
+  }
+
+  .ant-btn:disabled {
+    background-color: transparent;
+    color: var(--gray-300);
+    cursor: not-allowed;
+  }
+}
+
+.file-info-popover {
+  .ant-popover-inner {
+    border-radius: 8px;
+  }
+
+  // .ant-popover-inner-content {
+  //   padding: 16px;
+  // }
+
+  .file-info-card {
+    min-width: 120px;
+    max-width: 320px;
+    font-size: 13px;
+
+    .info-row {
+      display: flex;
+      margin-bottom: 8px;
+      line-height: 1.5;
+      align-items: flex-start;
+
+      &:last-child {
+        margin-bottom: 0;
       }
 
-      &.parsed {
-        border-left: 3px solid #52c41a;
+      .label {
+        color: var(--gray-500);
+        width: 40px;
+        flex-shrink: 0;
+        text-align: right;
+        margin-right: 12px;
+        font-weight: 500;
+      }
+
+      .value {
+        color: var(--gray-900);
+        word-break: break-all;
+        flex: 1;
+        font-family: monospace; /* Optional: for ID and numbers */
       }
 
       &.error {
-        border-left: 3px solid #ff4d4f;
-      }
-
-      &:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
-      }
-
-      .card-checkbox {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        z-index: 1;
-      }
-
-      .card-content {
-        .file-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 12px;
-
-          .file-type-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            color: white;
-
-            &.pdf { background: #ff4d4f; }
-            &.word { background: #1890ff; }
-            &.excel { background: #52c41a; }
-            &.text { background: #faad14; }
-            &.markdown { background: #722ed1; }
-            &.default { background: #666; }
-          }
-
-          .file-actions {
-            :deep(.ant-btn) {
-              padding: 0;
-              width: 24px;
-              height: 24px;
-            }
-          }
+        .label {
+          color: var(--color-error-500);
         }
-
-        .file-info {
-          margin-bottom: 12px;
-
-          .file-name {
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 8px;
-            line-height: 1.4;
-            word-break: break-word;
-          }
-
-          .file-meta {
-            .meta-item {
-              display: flex;
-              align-items: center;
-              gap: 4px;
-              font-size: 12px;
-              color: #999;
-              margin-bottom: 4px;
-
-              &:last-child {
-                margin-bottom: 0;
-              }
-            }
-          }
-        }
-
-        .file-status {
-          :deep(.ant-tag) {
-            margin: 0;
-          }
+        .value {
+          color: var(--color-error-500);
         }
       }
     }
-  }
-
-  .files-table {
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-
-    .file-cell {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-
-      .file-type-icon-small {
-        width: 32px;
-        height: 32px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: bold;
-        color: white;
-
-        &.pdf { background: #ff4d4f; }
-        &.word { background: #1890ff; }
-        &.excel { background: #52c41a; }
-        &.text { background: #faad14; }
-        &.markdown { background: #722ed1; }
-        &.default { background: #666; }
-      }
-
-      .file-name-wrapper {
-        flex: 1;
-
-        .file-name {
-          font-weight: 500;
-          color: #333;
-          line-height: 1.4;
-        }
-
-        .file-description {
-          font-size: 12px;
-          color: #999;
-          margin-top: 2px;
-        }
-      }
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 4px;
-
-      .ant-btn {
-        padding: 0;
-        width: 24px;
-        height: 24px;
-      }
-    }
-  }
-
-  .empty-files {
-    text-align: center;
-    padding: 40px 0;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-
-    .empty-actions {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 16px;
-    }
-  }
-}
-
-.files-pagination {
-  display: flex;
-  justify-content: center;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-@media (max-width: 768px) {
-  .files-header {
-    flex-direction: column;
-    gap: 16px;
-
-    .header-right {
-      width: 100%;
-      justify-content: flex-end;
-    }
-  }
-
-  .files-toolbar {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-
-    .toolbar-left {
-      flex-wrap: wrap;
-      gap: 8px;
-
-      .ant-input-search, .ant-select {
-        width: 100% !important;
-        margin-left: 0 !important;
-      }
-    }
-  }
-
-  .files-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .files-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .empty-files .empty-actions {
-    flex-direction: column;
-    align-items: center;
   }
 }
 </style>

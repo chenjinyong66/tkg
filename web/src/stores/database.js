@@ -100,12 +100,14 @@ export const useDatabaseStore = defineStore('database', () => {
     }
   }
 
-  async function getDatabaseInfo(id, skipQueryParams = false) {
+  async function getDatabaseInfo(id, skipQueryParams = false, isBackground = false) {
     const db_id = id || databaseId.value;
     if (!db_id) return;
 
-    state.lock = true;
-    state.databaseLoading = true;
+    if (!isBackground) {
+      state.lock = true;
+      state.databaseLoading = true;
+    }
     try {
       const data = await databaseApi.getDatabaseInfo(db_id);
       database.value = data;
@@ -119,8 +121,10 @@ export const useDatabaseStore = defineStore('database', () => {
       console.error(error);
       message.error(error.message || '获取数据库信息失败');
     } finally {
-      state.lock = false;
-      state.databaseLoading = false;
+      if (!isBackground) {
+        state.lock = false;
+        state.databaseLoading = false;
+      }
     }
   }
 
@@ -243,7 +247,7 @@ export const useDatabaseStore = defineStore('database', () => {
     });
   }
 
-  const processingStatuses = new Set(['processing', 'waiting']);
+  const processingStatuses = new Set(['processing', 'waiting', 'parsing', 'indexing']);
 
   function enableAutoRefresh(source = 'auto') {
     if (autoRefreshManualOverride && source === 'auto') {
@@ -337,39 +341,64 @@ export const useDatabaseStore = defineStore('database', () => {
     }
   }
 
-  async function rechunksFiles({ fileIds, params }) {
-    if (fileIds.length === 0) {
-      message.error('请选择要重新分块的文件！');
-      return;
-    }
-
+  async function parseFiles(fileIds) {
+    if (fileIds.length === 0) return;
     state.chunkLoading = true;
     try {
-      const data = await documentApi.rechunksDocuments(databaseId.value, fileIds, { ...params });
+      const data = await documentApi.parseDocuments(databaseId.value, fileIds);
       if (data.status === 'success' || data.status === 'queued') {
         enableAutoRefresh('auto');
-        message.success(data.message || `文档已提交处理，请在任务中心查看进度`);
+        message.success(data.message || '解析任务已提交');
         if (data.task_id) {
           taskerStore.registerQueuedTask({
             task_id: data.task_id,
-            name: `文档重新分块 (${databaseId.value || ''})`,
-            task_type: 'knowledge_rechunks',
+            name: `文档解析 (${databaseId.value})`,
+            task_type: 'knowledge_parse',
             message: data.message,
-            payload: {
-              db_id: databaseId.value,
-              count: fileIds.length,
-            }
+            payload: { db_id: databaseId.value, count: fileIds.length }
           });
         }
-        await getDatabaseInfo(undefined, true); // Skip query params when adding files
-        return true; // Indicate success
+        await getDatabaseInfo(undefined, true);
+        return true;
       } else {
-        message.error(data.message || '处理失败');
+        message.error(data.message || '提交失败');
         return false;
       }
     } catch (error) {
       console.error(error);
-      message.error(error.message || '处理请求失败');
+      message.error(error.message || '请求失败');
+      return false;
+    } finally {
+      state.chunkLoading = false;
+    }
+  }
+
+  async function indexFiles(fileIds, params = {}) {
+    if (fileIds.length === 0) return;
+    state.chunkLoading = true;
+    try {
+      const data = await documentApi.indexDocuments(databaseId.value, fileIds, params);
+      if (data.status === 'success' || data.status === 'queued') {
+        enableAutoRefresh('auto');
+        message.success(data.message || '入库任务已提交');
+        if (data.task_id) {
+          taskerStore.registerQueuedTask({
+            task_id: data.task_id,
+            name: `文档入库 (${databaseId.value})`,
+            task_type: 'knowledge_index',
+            message: data.message,
+            payload: { db_id: databaseId.value, count: fileIds.length }
+          });
+        }
+        await getDatabaseInfo(undefined, true);
+        return true;
+      } else {
+        message.error(data.message || '提交失败');
+        return false;
+      }
+    } catch (error) {
+      console.error(error);
+      message.error(error.message || '请求失败');
       return false;
     } finally {
       state.chunkLoading = false;
@@ -377,7 +406,9 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   async function openFileDetail(record) {
-    if (record.status !== 'done') {
+    // 只要有 markdown_file (隐含在 status >= parsed 中) 或者是 error_indexing (说明解析成功但入库失败)，就可以查看
+    const allowStatuses = ['done', 'parsed', 'indexed', 'error_indexing'];
+    if (!allowStatuses.includes(record.status)) {
       message.error('文件未处理完成，请稍后再试');
       return;
     }
@@ -393,7 +424,7 @@ export const useDatabaseStore = defineStore('database', () => {
         state.fileDetailModalVisible = false;
         return;
       }
-      selectedFile.value = { ...record, lines: data.lines || [] };
+      selectedFile.value = { ...record, lines: data.lines || [], content: data.content };
     } catch (error) {
       console.error(error);
       message.error(error.message);
@@ -442,7 +473,7 @@ export const useDatabaseStore = defineStore('database', () => {
   function startAutoRefresh() {
     if (state.autoRefresh && !refreshInterval) {
       refreshInterval = setInterval(() => {
-        getDatabaseInfo(undefined, true); // Skip loading query params during auto-refresh
+        getDatabaseInfo(undefined, true, true); // Skip loading query params during auto-refresh
       }, 1000);
     }
   }
@@ -471,8 +502,8 @@ export const useDatabaseStore = defineStore('database', () => {
   function selectAllFailedFiles() {
     const files = Object.values(database.value.files || {});
     const failedFiles = files
-      .filter(file => file.status === 'failed')
-      .map(file => file.file_id);
+        .filter(file => file.status === 'failed')
+        .map(file => file.file_id);
 
     const newSelectedKeys = [...new Set([...selectedRowKeys.value, ...failedFiles])];
     selectedRowKeys.value = newSelectedKeys;
@@ -503,7 +534,8 @@ export const useDatabaseStore = defineStore('database', () => {
     handleBatchDelete,
     moveFile,
     addFiles,
-    rechunksFiles,
+    parseFiles,
+    indexFiles,
     openFileDetail,
     loadQueryParams,
 

@@ -49,7 +49,7 @@
     </HeaderComponent>
 
     <!-- 对比人员区域 -->
-    <div class="compare-participants yn-grid-card">
+    <div class="compare-participants yn-grid-card" v-if="comparisonData.length > 0">
       <div class="participants-header">
         <h3 style="color: #0066b3;">对比人员 ({{ comparisonData.length }}/5)</h3>
         <a-tooltip v-if="comparisonData.length >= 5" title="对比列表已满，最多支持5人">
@@ -81,25 +81,25 @@
             :class="`participant-card-${index}`"
         >
           <div class="card-header">
-            <div class="participant-avatar" :style="getAvatarStyle(index)">
+            <div class="participant-avatar" :style="getAvatarStyle(talent)">
               {{ talent.name?.charAt(0) || '?' }}
             </div>
             <div class="participant-info">
               <div class="info-row">
                 <span class="participant-name" :style="{ color: getTalentColor(index) }">{{ talent.name }}</span>
                 <a-tag
-                    v-if="talent.isHighPotential"
-                    color="#0066b3"
+                    v-if="talent.talentLevel === 'strategic'"
+                    color="#f5222d"
                     size="small"
                     class="talent-tag"
                 >
-                  <StarOutlined />
-                  高潜人才
+                  <CrownOutlined />
+                  战略级
                 </a-tag>
               </div>
               <div class="info-row">
-                <span class="participant-position">{{ talent.position }}</span>
-                <span class="participant-department">{{ talent.department }}</span>
+                <span class="participant-position">{{ talent.position || '未设置' }}</span>
+                <span class="participant-department">{{ getCompanyLabel(talent.company) }}</span>
               </div>
             </div>
             <a-button
@@ -117,12 +117,12 @@
               <span class="tags-label">学历标签：</span>
               <div class="tags-container">
                 <a-tag
-                    v-if="talent.isDoubleFirstClass"
+                    v-if="talent.universityCategory === '985' || talent.universityCategory === '211'"
                     color="#0066b3"
                     size="small"
                     class="talent-tag"
                 >
-                  双一流
+                  {{ talent.universityCategory === '985' ? '985' : '211' }}
                 </a-tag>
                 <a-tag
                     v-if="talent.education === 'master' || talent.education === 'doctor'"
@@ -133,12 +133,12 @@
                   {{ talent.education === 'master' ? '研究生' : '博士' }}
                 </a-tag>
                 <a-tag
-                    v-if="talent.hasOverseasExperience"
+                    v-if="talent.hasInternationalExperience"
                     color="#66a3ff"
                     size="small"
                     class="talent-tag"
                 >
-                  海外经历
+                  国际经验
                 </a-tag>
               </div>
             </div>
@@ -147,7 +147,23 @@
               <span class="tags-label">能力标签：</span>
               <div class="tags-container">
                 <a-tag
-                    v-for="(tag, tagIndex) in (talent.profileTags || []).slice(0, 2)"
+                    v-if="talent.isTechnicalExpert"
+                    color="#0066b3"
+                    size="small"
+                    class="talent-tag"
+                >
+                  技术专家
+                </a-tag>
+                <a-tag
+                    v-if="talent.isSkilledExpert"
+                    color="#52c41a"
+                    size="small"
+                    class="talent-tag"
+                >
+                  技能专家
+                </a-tag>
+                <a-tag
+                    v-for="(tag, tagIndex) in (talent.interestTags || []).slice(0, 2)"
                     :key="tagIndex"
                     :color="getTagColor(tagIndex)"
                     size="small"
@@ -155,8 +171,8 @@
                 >
                   {{ tag }}
                 </a-tag>
-                <span v-if="talent.profileTags?.length > 2" class="more-tags">
-                  +{{ talent.profileTags.length - 2 }}
+                <span v-if="talent.interestTags?.length > 2" class="more-tags">
+                  +{{ talent.interestTags.length - 2 }}
                 </span>
               </div>
             </div>
@@ -177,7 +193,7 @@
     </div>
 
     <!-- 对比维度选择 -->
-    <div class="compare-dimensions yn-grid-card">
+    <div class="compare-dimensions yn-grid-card" v-if="comparisonData.length > 0">
       <div class="dimensions-header">
         <h3 style="color: #0066b3;">对比维度</h3>
         <a-switch
@@ -199,7 +215,7 @@
     </div>
 
     <!-- 对比表格 -->
-    <div class="compare-table-container yn-grid-card">
+    <div class="compare-table-container yn-grid-card" v-if="comparisonData.length > 0">
       <div class="table-wrapper" ref="tableWrapper">
         <table class="compare-table">
           <thead>
@@ -212,28 +228,28 @@
                 :class="`talent-col-${index}`"
             >
               <div class="talent-header">
-                <div class="talent-avatar" :style="getAvatarStyle(index)">
+                <div class="talent-avatar" :style="getAvatarStyle(talent)">
                   {{ talent.name?.charAt(0) || '?' }}
                 </div>
                 <div class="talent-info">
                   <div class="talent-name" :style="{ color: getTalentColor(index) }">{{ talent.name }}</div>
-                  <div class="talent-position">{{ talent.position }}</div>
+                  <div class="talent-position">{{ talent.position || '未设置' }}</div>
                   <div class="talent-tags">
                     <a-tag
-                        v-if="talent.isHighPotential"
+                        v-if="talent.talentLevel === 'strategic'"
+                        color="#f5222d"
+                        size="small"
+                        class="header-tag"
+                    >
+                      战略级
+                    </a-tag>
+                    <a-tag
+                        v-if="talent.isTechnicalExpert"
                         color="#0066b3"
                         size="small"
                         class="header-tag"
                     >
-                      高潜
-                    </a-tag>
-                    <a-tag
-                        v-if="talent.isDoubleFirstClass"
-                        color="#0088cc"
-                        size="small"
-                        class="header-tag"
-                    >
-                      双一流
+                      技术专家
                     </a-tag>
                   </div>
                 </div>
@@ -250,23 +266,23 @@
             </td>
           </tr>
           <tr v-if="showDimension('basic')">
-            <td class="dimension-name">年龄</td>
+            <td class="dimension-name">所属单位</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ talent.age || '未设置' }}</span>
+              <span class="compare-value">{{ getCompanyLabel(talent.company) || '未设置' }}</span>
             </td>
           </tr>
           <tr v-if="showDimension('basic')">
-            <td class="dimension-name">性别</td>
+            <td class="dimension-name">职称</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ formatGender(talent.gender) }}</span>
+              <span class="compare-value">{{ getTitleLabel(talent.title) || '未设置' }}</span>
             </td>
           </tr>
           <tr v-if="showDimension('basic')">
@@ -277,123 +293,166 @@
                 :class="`talent-cell-${index}`"
             >
               <div class="education-cell">
-                <span class="compare-value">{{ formatEducation(talent.education) }}</span>
+                <span class="compare-value">{{ getEducationLabel(talent.education) || '未设置' }}</span>
                 <a-tag
-                    v-if="talent.isDoubleFirstClass"
+                    v-if="talent.universityCategory === '985' || talent.universityCategory === '211'"
                     color="#0066b3"
                     size="small"
                     class="inline-tag"
                 >
-                  双一流
+                  {{ talent.universityCategory === '985' ? '985' : '211' }}
                 </a-tag>
               </div>
             </td>
           </tr>
           <tr v-if="showDimension('basic')">
-            <td class="dimension-name">司龄</td>
+            <td class="dimension-name">专业领域</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ talent.companyTenure || 0 }}年</span>
+              <span class="compare-value">{{ getDomainLabel(talent.primaryDomain) || '未设置' }}</span>
             </td>
           </tr>
 
-          <!-- 工作信息 -->
-          <tr class="dimension-group" v-if="showDimension('work')">
+          <!-- 人才标签 -->
+          <tr class="dimension-group" v-if="showDimension('talent')">
             <td colspan="6" class="group-header" style="background: #e6f0ff; color: #0066b3;">
-              <FileTextOutlined style="margin-right: 8px;" />
-              工作信息
+              <TagOutlined style="margin-right: 8px;" />
+              人才标签
             </td>
           </tr>
-          <tr v-if="showDimension('work')">
-            <td class="dimension-name">职位级别</td>
+          <tr v-if="showDimension('talent')">
+            <td class="dimension-name">人才层级</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <a-tag :color="getLevelColor(talent.level)" size="small" class="yn-grid-tag">
-                {{ formatPositionLevel(talent.level) }}
+              <a-tag :color="getLevelColor(talent.talentLevel)" size="small" class="yn-grid-tag">
+                {{ getLevelLabel(talent.talentLevel) }}
               </a-tag>
             </td>
           </tr>
-          <tr v-if="showDimension('work')">
-            <td class="dimension-name">薪资范围</td>
+          <tr v-if="showDimension('talent')">
+            <td class="dimension-name">人才类型</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ formatSalary(talent.salaryRange) }}</span>
+              <span class="compare-value">{{ getTalentTypeLabel(talent.talentType) || '未设置' }}</span>
             </td>
           </tr>
-          <tr v-if="showDimension('work')">
-            <td class="dimension-name">工作地点</td>
+          <tr v-if="showDimension('talent')">
+            <td class="dimension-name">技术专家等级</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ talent.location || '未设置' }}</span>
+              <span class="compare-value">{{ getTechnicalExpertLevelLabel(talent.technicalExpertLevel) || '未设置' }}</span>
             </td>
           </tr>
 
-          <!-- 绩效信息 -->
-          <tr class="dimension-group" v-if="showDimension('performance')">
+          <!-- 能力与成果 -->
+          <tr class="dimension-group" v-if="showDimension('achievement')">
             <td colspan="6" class="group-header" style="background: #e6f0ff; color: #0066b3;">
               <RiseOutlined style="margin-right: 8px;" />
-              绩效信息
+              能力与成果
             </td>
           </tr>
-          <tr v-if="showDimension('performance')">
-            <td class="dimension-name">最近绩效</td>
+          <tr v-if="showDimension('achievement')">
+            <td class="dimension-name">评估总分</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <a-progress
-                  :percent="getPerformancePercent(talent.performance)"
-                  :stroke-color="getPerformanceColor(talent.performance)"
-                  size="small"
-                  :show-info="false"
-                  class="yn-grid-progress"
-              />
-              <span class="performance-value">{{ formatPerformance(talent.performance) }}</span>
+              <div class="score-cell">
+                <a-progress
+                    :percent="talent.evaluationScore || 0"
+                    :stroke-color="getScoreColor(talent.evaluationScore)"
+                    size="small"
+                    :show-info="false"
+                    style="width: 60px;"
+                    class="yn-grid-progress"
+                />
+                <span class="score-value">{{ talent.evaluationScore || '未评估' }}</span>
+              </div>
             </td>
           </tr>
-          <tr v-if="showDimension('performance')">
-            <td class="dimension-name">平均绩效</td>
+          <tr v-if="showDimension('achievement')">
+            <td class="dimension-name">专利数量</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ formatPerformance(talent.avgPerformance || talent.performance) }}</span>
+              <span class="compare-value" style="color: #0066b3; font-weight: 600;">{{ talent.patentCount || 0 }}项</span>
             </td>
           </tr>
-          <tr v-if="showDimension('performance')">
-            <td class="dimension-name">晋升次数</td>
+          <tr v-if="showDimension('achievement')">
+            <td class="dimension-name">论文数量</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <span class="compare-value">{{ talent.promotionCount || 0 }}次</span>
+              <span class="compare-value" style="color: #0066b3; font-weight: 600;">{{ talent.paperCount || 0 }}篇</span>
+            </td>
+          </tr>
+          <tr v-if="showDimension('achievement')">
+            <td class="dimension-name">主持项目</td>
+            <td
+                v-for="(talent, index) in comparisonData"
+                :key="talent.id"
+                :class="`talent-cell-${index}`"
+            >
+              <span class="compare-value" style="color: #0066b3; font-weight: 600;">{{ talent.hostedProjectsCount || 0 }}个</span>
+            </td>
+          </tr>
+          <tr v-if="showDimension('achievement')">
+            <td class="dimension-name">技术标准</td>
+            <td
+                v-for="(talent, index) in comparisonData"
+                :key="talent.id"
+                :class="`talent-cell-${index}`"
+            >
+              <span class="compare-value" style="color: #0066b3; font-weight: 600;">{{ talent.standardsCount || 0 }}项</span>
             </td>
           </tr>
 
-          <!-- 能力评估 -->
-          <tr class="dimension-group" v-if="showDimension('capability')">
+          <!-- 发展与社会关系 -->
+          <tr class="dimension-group" v-if="showDimension('development')">
             <td colspan="6" class="group-header" style="background: #e6f0ff; color: #0066b3;">
-              <BulbOutlined style="margin-right: 8px;" />
-              能力评估
+              <ShareAltOutlined style="margin-right: 8px;" />
+              发展与社会关系
             </td>
           </tr>
-          <tr v-if="showDimension('capability')">
-            <td class="dimension-name">专业技能</td>
+          <tr v-if="showDimension('development')">
+            <td class="dimension-name">导师</td>
+            <td
+                v-for="(talent, index) in comparisonData"
+                :key="talent.id"
+                :class="`talent-cell-${index}`"
+            >
+              <span class="compare-value">{{ talent.mentor || '未设置' }}</span>
+            </td>
+          </tr>
+          <tr v-if="showDimension('development')">
+            <td class="dimension-name">所属团队</td>
+            <td
+                v-for="(talent, index) in comparisonData"
+                :key="talent.id"
+                :class="`talent-cell-${index}`"
+            >
+              <span class="compare-value">{{ talent.team || '未设置' }}</span>
+            </td>
+          </tr>
+          <tr v-if="showDimension('development')">
+            <td class="dimension-name">兴趣方向</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
@@ -401,169 +460,55 @@
             >
               <div class="skills-cell">
                 <a-tag
-                    v-for="skill in (talent.skills || []).slice(0, 2)"
-                    :key="skill"
+                    v-for="(tag, tagIndex) in (talent.interestTags || []).slice(0, 3)"
+                    :key="tagIndex"
                     size="small"
                     class="yn-grid-tag skill-tag"
                 >
-                  {{ skill }}
+                  {{ tag }}
                 </a-tag>
-                <span v-if="talent.skills && talent.skills.length > 2" class="more-skills">
-                  +{{ talent.skills.length - 2 }}
+                <span v-if="talent.interestTags && talent.interestTags.length > 3" class="more-skills">
+                  +{{ talent.interestTags.length - 3 }}
                 </span>
               </div>
             </td>
           </tr>
-          <tr v-if="showDimension('capability')">
-            <td class="dimension-name">领导能力</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <a-rate :value="talent.leadership || 0" disabled class="yn-grid-rate" />
-            </td>
-          </tr>
-          <tr v-if="showDimension('capability')">
-            <td class="dimension-name">沟通能力</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <a-rate :value="talent.communication || 0" disabled class="yn-grid-rate" />
-            </td>
-          </tr>
 
-          <!-- 项目经验 -->
-          <tr class="dimension-group" v-if="showDimension('project')">
+          <!-- 人才荣誉 -->
+          <tr class="dimension-group" v-if="showDimension('honor')">
             <td colspan="6" class="group-header" style="background: #e6f0ff; color: #0066b3;">
-              <ProjectOutlined style="margin-right: 8px;" />
-              项目经验
+              <StarOutlined style="margin-right: 8px;" />
+              人才荣誉
             </td>
           </tr>
-          <tr v-if="showDimension('project')">
-            <td class="dimension-name">最近项目</td>
+          <tr v-if="showDimension('honor')">
+            <td class="dimension-name">获得荣誉</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <div class="project-cell">
-                <div class="project-name">{{ getRecentProject(talent)?.name || '无项目经验' }}</div>
-                <div class="project-role">{{ getRecentProject(talent)?.role || '' }}</div>
-                <div class="project-duration">{{ getRecentProject(talent)?.duration || '' }}</div>
+              <div class="honor-cell">
+                <template v-if="talent.talentHonors && talent.talentHonors.length > 0">
+                  <span class="honor-text">{{ getFirstHonor(talent.talentHonors) }}</span>
+                  <span v-if="getHonorCount(talent.talentHonors) > 1" class="more-honors">
+                    +{{ getHonorCount(talent.talentHonors) - 1 }}
+                  </span>
+                </template>
+                <span v-else class="no-data">无荣誉</span>
               </div>
             </td>
           </tr>
-          <tr v-if="showDimension('project')">
-            <td class="dimension-name">项目成果</td>
+          <tr v-if="showDimension('honor')">
+            <td class="dimension-name">支持计划</td>
             <td
                 v-for="(talent, index) in comparisonData"
                 :key="talent.id"
                 :class="`talent-cell-${index}`"
             >
-              <div class="project-outcome">
-                {{ getRecentProject(talent)?.outcome || '未记录' }}
+              <div class="support-plan-cell">
+                <span class="plan-text">{{ talent.talentSupportPlan ? getFirstSupportPlan(talent.talentSupportPlan) : '无支持计划' }}</span>
               </div>
-            </td>
-          </tr>
-          <tr v-if="showDimension('project')">
-            <td class="dimension-name">参与项目数</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <span class="compare-value">{{ talent.projects?.length || 0 }}个</span>
-            </td>
-          </tr>
-
-          <!-- 培训经历 -->
-          <tr class="dimension-group" v-if="showDimension('training')">
-            <td colspan="6" class="group-header" style="background: #e6f0ff; color: #0066b3;">
-              <BookOutlined style="margin-right: 8px;" />
-              培训经历
-            </td>
-          </tr>
-          <tr v-if="showDimension('training')">
-            <td class="dimension-name">最近培训</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <div class="training-cell">
-                <div class="training-name">{{ getRecentTraining(talent)?.name || '无培训经历' }}</div>
-                <div class="training-date">{{ getRecentTraining(talent)?.date || '' }}</div>
-                <div class="training-certificate">{{ getRecentTraining(talent)?.certificate || '' }}</div>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="showDimension('training')">
-            <td class="dimension-name">培训次数</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <span class="compare-value">{{ talent.trainings?.length || 0 }}次</span>
-            </td>
-          </tr>
-          <tr v-if="showDimension('training')">
-            <td class="dimension-name">获得证书数</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <span class="compare-value">{{ getCertificateCount(talent) }}个</span>
-            </td>
-          </tr>
-
-          <!-- 人才画像 -->
-          <tr class="dimension-group" v-if="showDimension('profile')">
-            <td colspan="6" class="group-header" style="background: #e6f0ff; color: #0066b3;">
-              <UserOutlined style="margin-right: 8px;" />
-              人才画像
-            </td>
-          </tr>
-          <tr v-if="showDimension('profile')">
-            <td class="dimension-name">人才标签</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <div class="tags-cell">
-                <a-tag
-                    v-for="tag in (talent.profileTags || []).slice(0, 3)"
-                    :key="tag"
-                    color="#0066b3"
-                    size="small"
-                    class="yn-grid-tag profile-tag"
-                >
-                  {{ tag }}
-                </a-tag>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="showDimension('profile')">
-            <td class="dimension-name">发展潜力</td>
-            <td
-                v-for="(talent, index) in comparisonData"
-                :key="talent.id"
-                :class="`talent-cell-${index}`"
-            >
-              <a-progress
-                  :percent="talent.potential || 0"
-                  size="small"
-                  :stroke-color="getPotentialColor(talent.potential || 0)"
-                  class="yn-grid-progress"
-              />
-              <span v-if="talent.isHighPotential" class="potential-tag">
-                高潜
-              </span>
             </td>
           </tr>
           </tbody>
@@ -579,7 +524,7 @@
 
       <div class="analysis-content">
         <!-- 雷达图 -->
-        <div class="radar-chart-section">
+        <div class="radar-chart-section" v-if="comparisonData.length >= 2">
           <h4 style="color: #0066b3;">能力雷达图对比</h4>
           <div id="radarChart" style="width: 100%; height: 400px;"></div>
         </div>
@@ -607,7 +552,7 @@
         </div>
 
         <!-- 推荐建议 -->
-        <div class="recommendations">
+        <div class="recommendations" v-if="analysisData.recommendations.length > 0">
           <h4 style="color: #0066b3;">推荐建议</h4>
           <div class="recommendation-list">
             <a-card
@@ -668,7 +613,7 @@
           <div v-if="searchModalState.searchMode === 'quick'" class="modal-quick-search">
             <a-input-search
                 v-model:value="searchModalState.searchKeyword"
-                placeholder="搜索人才姓名、职位、技能..."
+                placeholder="搜索人才姓名、职位、专业领域..."
                 style="width: 320px"
                 @search="handleModalSearch"
                 allow-clear
@@ -686,24 +631,18 @@
           <div v-else class="modal-advanced-filters">
             <div class="filter-row">
               <a-select
-                  v-model:value="searchModalState.filters.department"
-                  placeholder="部门"
-                  style="width: 180px"
+                  v-model:value="searchModalState.filters.company"
+                  placeholder="所属单位"
+                  style="width: 200px"
                   allow-clear
                   @change="handleModalFilterChange"
                   class="yn-grid-select"
               >
-                <a-select-option value="headquarters">总部部门</a-select-option>
-                <a-select-option value="office">办公室</a-select-option>
-                <a-select-option value="planning">规划部</a-select-option>
-                <a-select-option value="hr">人力资源部</a-select-option>
-                <a-select-option value="production">生产部门</a-select-option>
-                <a-select-option value="dispatching">调度中心</a-select-option>
-                <a-select-option value="power_transmission">输电运检部</a-select-option>
-                <a-select-option value="distribution">配电运检部</a-select-option>
-                <a-select-option value="transformation">变电运检部</a-select-option>
-                <a-select-option value="marketing">市场营销部</a-select-option>
-                <a-select-option value="customer_service">客户服务中心</a-select-option>
+                <a-select-option value="yunnan_grid">云南电网有限责任公司</a-select-option>
+                <a-select-option value="electric_power_research">云南电网电力科学研究院</a-select-option>
+                <a-select-option value="kunming">昆明供电局</a-select-option>
+                <a-select-option value="qujing">曲靖供电局</a-select-option>
+                <a-select-option value="yuxi">玉溪供电局</a-select-option>
               </a-select>
 
               <a-select
@@ -714,24 +653,24 @@
                   @change="handleModalFilterChange"
                   class="yn-grid-select"
               >
-                <a-select-option value="college">大专</a-select-option>
-                <a-select-option value="bachelor">本科</a-select-option>
-                <a-select-option value="master">硕士</a-select-option>
                 <a-select-option value="doctor">博士</a-select-option>
+                <a-select-option value="master">硕士</a-select-option>
+                <a-select-option value="bachelor">本科</a-select-option>
+                <a-select-option value="college">大专</a-select-option>
               </a-select>
 
               <a-select
-                  v-model:value="searchModalState.filters.performance"
-                  placeholder="绩效"
+                  v-model:value="searchModalState.filters.talentLevel"
+                  placeholder="人才层级"
                   style="width: 120px; margin-left: 10px"
                   allow-clear
                   @change="handleModalFilterChange"
                   class="yn-grid-select"
               >
-                <a-select-option value="A">A（优秀）</a-select-option>
-                <a-select-option value="B">B（良好）</a-select-option>
-                <a-select-option value="C">C（合格）</a-select-option>
-                <a-select-option value="D">D（待改进）</a-select-option>
+                <a-select-option value="strategic">战略级</a-select-option>
+                <a-select-option value="leadership">领军级</a-select-option>
+                <a-select-option value="pinnacle">拔尖级</a-select-option>
+                <a-select-option value="backbone">骨干</a-select-option>
               </a-select>
 
               <a-button
@@ -818,33 +757,23 @@
                 </div>
               </template>
 
-              <template v-if="column.key === 'department'">
-                <span>{{ record.department || '未设置' }}</span>
-              </template>
-
               <template v-if="column.key === 'position'">
                 <span>{{ record.position || '未设置' }}</span>
               </template>
 
-              <template v-if="column.key === 'companyTenure'">
-                <span>{{ record.companyTenure || 0 }}年</span>
+              <template v-if="column.key === 'company'">
+                <span>{{ getCompanyLabel(record.company) || '未设置' }}</span>
               </template>
 
-              <template v-if="column.key === 'performance'">
-                <a-tag :color="getPerformanceColor(record.performance)" size="small">
-                  {{ record.performance || '未评估' }}
+              <template v-if="column.key === 'talentLevel'">
+                <a-tag :color="getLevelColor(record.talentLevel)" size="small">
+                  {{ getLevelLabel(record.talentLevel) }}
                 </a-tag>
               </template>
 
-              <template v-if="column.key === 'status'">
-                <div class="modal-talent-tags">
-                  <a-tag :color="getStatusColor(record.status)" size="small">
-                    {{ getStatusLabel(record.status) }}
-                  </a-tag>
-                  <a-tag v-if="record.isHighPotential" color="#0066b3" size="small" style="margin-top: 4px;">
-                    <StarOutlined style="margin-right: 2px;" />
-                    高潜人才
-                  </a-tag>
+              <template v-if="column.key === 'evaluationScore'">
+                <div class="score-cell">
+                  <span class="score-value">{{ record.evaluationScore || '未评估' }}</span>
                 </div>
               </template>
             </template>
@@ -926,14 +855,14 @@ import {
   TeamOutlined,
   FileTextOutlined,
   RiseOutlined,
-  BulbOutlined,
+  TagOutlined,
   UserOutlined,
   SearchOutlined,
   FilterOutlined,
   RedoOutlined,
   BarChartOutlined,
-  ProjectOutlined,
-  BookOutlined
+  CrownOutlined,
+  ShareAltOutlined
 } from '@ant-design/icons-vue'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import { talentApi } from '@/apis/talent_api'
@@ -962,7 +891,7 @@ const analysisData = reactive({
 
 // 维度选择
 const selectedDimensions = ref([
-  'basic', 'work', 'performance', 'capability', 'project', 'training', 'profile'
+  'basic', 'talent', 'achievement', 'development', 'honor'
 ])
 
 // 添加人才模态框状态
@@ -971,9 +900,9 @@ const searchModalState = reactive({
   searchMode: 'quick',
   searchKeyword: '',
   filters: {
-    department: null,
+    company: null,
     education: null,
-    performance: null
+    talentLevel: null
   },
   currentPage: 1,
   pageSize: 10,
@@ -982,15 +911,13 @@ const searchModalState = reactive({
 })
 
 // ============== 常量定义 ==============
-// 维度选项（增加项目经验和培训经历）
+// 维度选项
 const dimensionOptions = [
   { label: '基本信息', value: 'basic' },
-  { label: '工作信息', value: 'work' },
-  { label: '绩效信息', value: 'performance' },
-  { label: '能力评估', value: 'capability' },
-  { label: '项目经验', value: 'project' },
-  { label: '培训经历', value: 'training' },
-  { label: '人才画像', value: 'profile' }
+  { label: '人才标签', value: 'talent' },
+  { label: '能力与成果', value: 'achievement' },
+  { label: '发展与社会关系', value: 'development' },
+  { label: '人才荣誉', value: 'honor' }
 ]
 
 // 人才颜色方案
@@ -1017,29 +944,24 @@ const modalTableColumns = [
     fixed: 'left'
   },
   {
-    title: '部门',
-    key: 'department',
-    width: 150
-  },
-  {
     title: '职位',
     key: 'position',
     width: 150
   },
   {
-    title: '司龄',
-    key: 'companyTenure',
+    title: '所属单位',
+    key: 'company',
+    width: 180
+  },
+  {
+    title: '人才层级',
+    key: 'talentLevel',
     width: 100
   },
   {
-    title: '绩效',
-    key: 'performance',
-    width: 120
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 120
+    title: '评估分',
+    key: 'evaluationScore',
+    width: 100
   }
 ]
 
@@ -1063,15 +985,14 @@ const modalFilteredTalents = computed(() => {
     filtered = filtered.filter(talent =>
         talent.name?.toLowerCase().includes(keyword) ||
         talent.position?.toLowerCase().includes(keyword) ||
-        talent.department?.toLowerCase().includes(keyword) ||
-        (talent.skills?.some(skill => skill.toLowerCase().includes(keyword))) ||
+        talent.primaryDomain?.toLowerCase().includes(keyword) ||
         talent.employeeId?.toLowerCase().includes(keyword)
     )
   }
 
-  // 部门筛选
-  if (searchModalState.filters.department) {
-    filtered = filtered.filter(talent => talent.department === searchModalState.filters.department)
+  // 单位筛选
+  if (searchModalState.filters.company) {
+    filtered = filtered.filter(talent => talent.company === searchModalState.filters.company)
   }
 
   // 学历筛选
@@ -1079,9 +1000,9 @@ const modalFilteredTalents = computed(() => {
     filtered = filtered.filter(talent => talent.education === searchModalState.filters.education)
   }
 
-  // 绩效筛选
-  if (searchModalState.filters.performance) {
-    filtered = filtered.filter(talent => talent.performance === searchModalState.filters.performance)
+  // 人才层级筛选
+  if (searchModalState.filters.talentLevel) {
+    filtered = filtered.filter(talent => talent.talentLevel === searchModalState.filters.talentLevel)
   }
 
   return filtered
@@ -1101,10 +1022,19 @@ const getTalentColor = (index) => {
 }
 
 // 获取头像样式
-const getAvatarStyle = (index) => {
-  const color = talentColors[index % talentColors.length]
+const getAvatarStyle = (talent) => {
+  const colors = [
+    'linear-gradient(135deg, #0066b3, #0088cc)',
+    'linear-gradient(135deg, #0066b3, #66a3ff)',
+    'linear-gradient(135deg, #0088cc, #99c2ff)',
+    'linear-gradient(135deg, #004d99, #0066b3)'
+  ]
+
+  const charCode = talent.name?.charCodeAt(0) || 0
+  const colorIndex = charCode % colors.length
+
   return {
-    background: `linear-gradient(135deg, ${color.primary}, ${color.avatar})`,
+    background: colors[colorIndex],
     color: 'white'
   }
 }
@@ -1139,253 +1069,108 @@ const showDimension = (dimension) => {
 }
 
 // 格式化函数
-const formatGender = (gender) => {
-  const genderMap = {
-    male: '男',
-    female: '女',
-    unknown: '未设置'
+const getCompanyLabel = (company) => {
+  const companies = {
+    yunnan_grid: '云南电网有限责任公司',
+    electric_power_research: '云南电网电力科学研究院',
+    kunming: '昆明供电局',
+    qujing: '曲靖供电局',
+    yuxi: '玉溪供电局'
   }
-  return genderMap[gender] || '未设置'
+  return companies[company] || company
 }
 
-const formatEducation = (education) => {
+const getTitleLabel = (title) => {
+  const titles = {
+    senior_engineer: '高级工程师',
+    engineer: '工程师',
+    assistant_engineer: '助理工程师',
+    technician: '技师'
+  }
+  return titles[title] || title
+}
+
+const getEducationLabel = (education) => {
   const educationMap = {
-    college: '大专',
-    bachelor: '本科',
+    doctor: '博士',
     master: '硕士',
-    doctor: '博士'
+    bachelor: '本科',
+    college: '大专'
   }
-  return educationMap[education] || '未设置'
+  return educationMap[education] || education
 }
 
-const formatPositionLevel = (level) => {
-  const levelMap = {
-    junior: '初级',
-    intermediate: '中级',
-    senior: '高级',
-    expert: '专家'
+const getDomainLabel = (domain) => {
+  const domains = {
+    smart_transmission: '智能输变电',
+    power_ai: '电力人工智能',
+    new_energy: '新能源',
+    power_system: '电力系统'
   }
-  return levelMap[level] || '未设置'
+  return domains[domain] || domain
 }
 
-const formatSalary = (salaryRange) => {
-  return salaryRange ? `${salaryRange}元/月` : '未设置'
-}
-
-const formatPerformance = (performance) => {
-  return performance || '未评估'
-}
-
-// ============== 新增的函数（项目经验和培训经历） ==============
-const getRecentProject = (talent) => {
-  if (!talent.projects || talent.projects.length === 0) {
-    return null
+const getTalentTypeLabel = (type) => {
+  const types = {
+    technical_expert: '技术专家',
+    skilled_expert: '技能专家',
+    young_talent: '青年托举人才'
   }
-  // 按时间排序，获取最近的项目
-  const sortedProjects = [...talent.projects].sort((a, b) => {
-    return new Date(b.endDate || b.startDate) - new Date(a.endDate || a.startDate)
-  })
-  return sortedProjects[0]
+  return types[type] || type
 }
 
-const getRecentTraining = (talent) => {
-  if (!talent.trainings || talent.trainings.length === 0) {
-    return null
+const getTechnicalExpertLevelLabel = (level) => {
+  const levels = {
+    national: '国家级',
+    provincial: '省部级',
+    company: '公司级'
   }
-  // 按时间排序，获取最近的培训
-  const sortedTrainings = [...talent.trainings].sort((a, b) => {
-    return new Date(b.date) - new Date(a.date)
-  })
-  return sortedTrainings[0]
+  return levels[level] || level
 }
 
-const getCertificateCount = (talent) => {
-  if (!talent.trainings) return 0
-  return talent.trainings.filter(t => t.certificate).length
+const getLevelLabel = (level) => {
+  const labels = {
+    strategic: '战略级',
+    leadership: '领军级',
+    pinnacle: '拔尖级',
+    backbone: '骨干'
+  }
+  return labels[level] || level
 }
 
-// 生成模拟的项目经验数据
-const generateMockProjects = () => {
-  const projects = [
-    {
-      name: '智能电网改造项目',
-      role: '项目经理',
-      startDate: '2023-01',
-      endDate: '2023-12',
-      duration: '12个月',
-      outcome: '项目提前完成，节约成本15%',
-      description: '负责项目整体规划、团队协调和进度控制'
-    },
-    {
-      name: '电力调度系统升级',
-      role: '技术负责人',
-      startDate: '2022-06',
-      endDate: '2022-12',
-      duration: '6个月',
-      outcome: '系统性能提升30%',
-      description: '负责技术方案设计和实施'
-    },
-    {
-      name: '新能源接入项目',
-      role: '项目工程师',
-      startDate: '2021-03',
-      endDate: '2021-09',
-      duration: '6个月',
-      outcome: '成功接入光伏发电系统',
-      description: '负责设备安装和调试'
-    }
-  ]
-  return projects.slice(0, Math.floor(Math.random() * 3) + 1)
-}
-
-// 生成模拟的培训经历数据
-const generateMockTrainings = () => {
-  const trainings = [
-    {
-      name: '项目管理高级研修班',
-      organizer: '清华大学',
-      date: '2023-05',
-      duration: '3天',
-      certificate: '高级项目管理证书',
-      description: '学习项目管理先进理念和方法'
-    },
-    {
-      name: '电力系统安全培训',
-      organizer: '国家电网',
-      date: '2023-03',
-      duration: '2天',
-      certificate: '安全操作证书',
-      description: '电力系统安全操作规程'
-    },
-    {
-      name: '领导力提升训练营',
-      organizer: '中欧商学院',
-      date: '2022-10',
-      duration: '5天',
-      certificate: '领导力培训证书',
-      description: '提升领导力和团队管理能力'
-    },
-    {
-      name: '技术创新研讨会',
-      organizer: '华为技术有限公司',
-      date: '2022-06',
-      duration: '2天',
-      certificate: null,
-      description: '电力行业技术创新交流'
-    }
-  ]
-  return trainings.slice(0, Math.floor(Math.random() * 4) + 1)
-}
-
-// ============== 业务函数 ==============
 const getLevelColor = (level) => {
   const colors = {
-    junior: '#66a3ff',
-    intermediate: '#0088cc',
-    senior: '#0066b3',
-    expert: '#004d99'
+    strategic: '#f5222d',
+    leadership: '#fa8c16',
+    pinnacle: '#0066b3',
+    backbone: '#52c41a'
   }
   return colors[level] || '#e6f0ff'
 }
 
-const getPerformancePercent = (performance) => {
-  const values = {
-    'A': 95,
-    'B': 80,
-    'B+': 85,
-    'A-': 90,
-    'C': 65,
-    'D': 50
-  }
-  return values[performance] || 0
-}
-
-const getPerformanceColor = (performance) => {
-  const colors = {
-    'A': '#0066b3',
-    'B': '#0088cc',
-    'B+': '#66a3ff',
-    'A-': '#0088cc',
-    'C': '#66a3ff',
-    'D': '#99c2ff'
-  }
-  return colors[performance] || '#e6f0ff'
-}
-
-const getPotentialColor = (percent) => {
-  if (percent >= 80) return '#0066b3'
-  if (percent >= 60) return '#0088cc'
-  if (percent >= 40) return '#66a3ff'
-  return '#99c2ff'
-}
-
 const getScoreColor = (score) => {
-  if (score >= 85) return '#0066b3'
-  if (score >= 70) return '#0088cc'
-  if (score >= 60) return '#66a3ff'
+  if (!score) return '#d9d9d9'
+  if (score >= 90) return '#0066b3'
+  if (score >= 80) return '#0088cc'
+  if (score >= 70) return '#66a3ff'
   return '#99c2ff'
 }
 
-const getStatusColor = (status) => {
-  const colors = {
-    active: '#0066b3',
-    probation: '#0088cc',
-    leave: '#66a3ff',
-    inactive: '#999'
-  }
-  return colors[status] || '#e6f0ff'
+const getFirstHonor = (honors) => {
+  if (!honors) return ''
+  const honorList = honors.split(';')
+  return honorList[0]?.trim() || ''
 }
 
-const getStatusLabel = (status) => {
-  const labels = {
-    active: '在职',
-    probation: '试用期',
-    leave: '休假',
-    inactive: '离职'
-  }
-  return labels[status] || '未知'
+const getHonorCount = (honors) => {
+  if (!honors) return 0
+  return honors.split(';').length
 }
 
-const calculateTotalScore = (talent) => {
-  let score = 0
-  let factors = 0
-
-  // 绩效评分
-  if (talent.performance) {
-    score += getPerformancePercent(talent.performance)
-    factors++
-  }
-
-  // 能力评分
-  if (talent.leadership) {
-    score += talent.leadership * 20
-    factors++
-  }
-
-  if (talent.communication) {
-    score += talent.communication * 20
-    factors++
-  }
-
-  // 潜力评分
-  if (talent.potential) {
-    score += talent.potential
-    factors++
-  }
-
-  // 项目经验加分
-  if (talent.projects && talent.projects.length > 0) {
-    score += Math.min(talent.projects.length * 5, 20)
-    factors++
-  }
-
-  // 培训经历加分
-  if (talent.trainings && talent.trainings.length > 0) {
-    score += Math.min(talent.trainings.length * 3, 15)
-    factors++
-  }
-
-  return factors > 0 ? Math.round(score / factors) : 0
+const getFirstSupportPlan = (plans) => {
+  if (!plans) return ''
+  const planList = plans.split(';')
+  return planList[0]?.trim() || ''
 }
 
 const getTalentById = (id) => {
@@ -1396,8 +1181,54 @@ const isInComparisonList = (talentId) => {
   return comparisonData.value.some(item => item.id === talentId)
 }
 
+// ============== 业务函数 ==============
+const calculateTotalScore = (talent) => {
+  let score = 0
+  let factors = 0
+
+  // 评估分
+  if (talent.evaluationScore) {
+    score += talent.evaluationScore
+    factors++
+  }
+
+  // 专利加分
+  if (talent.patentCount) {
+    score += Math.min(talent.patentCount * 2, 20)
+    factors++
+  }
+
+  // 论文加分
+  if (talent.paperCount) {
+    score += Math.min(talent.paperCount * 1.5, 15)
+    factors++
+  }
+
+  // 项目加分
+  if (talent.hostedProjectsCount) {
+    score += Math.min(talent.hostedProjectsCount * 3, 15)
+    factors++
+  }
+
+  // 人才层级加分
+  const levelBonus = {
+    strategic: 15,
+    leadership: 10,
+    pinnacle: 5,
+    backbone: 0
+  }
+  if (talent.talentLevel) {
+    score += levelBonus[talent.talentLevel] || 0
+    factors++
+  }
+
+  return factors > 0 ? Math.round(score / factors) : 0
+}
+
 // ============== 事件处理函数 ==============
 const handleBack = () => {
+  comparisonStore.clearComparison()
+
   router.back()
 }
 
@@ -1489,23 +1320,12 @@ const loadModalTalents = async () => {
     if (data.talents) {
       talentList = data.talents.map(talent => ({
         ...talent,
-        id: talent.id,
-        skills: Array.isArray(talent.skills) ? talent.skills : [],
-        expertise: Array.isArray(talent.expertise) ? talent.expertise : [],
-        companyTenure: talent.companyTenure || calculateCompanyTenure(talent.joinDate),
-        age: talent.age || calculateAge(talent.birthDate),
-        performance: talent.performance || getRandomPerformance(),
-        profileTags: talent.profileTags || generateProfileTags(talent),
-        isHighPotential: talent.isHighPotential || Math.random() > 0.7,
-        status: talent.status || 'active',
-        // 生成模拟的项目经验和培训经历
-        projects: generateMockProjects(),
-        trainings: generateMockTrainings(),
-        leadership: Math.floor(Math.random() * 5) + 1,
-        communication: Math.floor(Math.random() * 5) + 1,
-        potential: Math.floor(Math.random() * 40) + 60,
-        isDoubleFirstClass: Math.random() > 0.7,
-        hasOverseasExperience: Math.random() > 0.8
+        interestTags: Array.isArray(talent.interestTags) ? talent.interestTags : [],
+        hostedProjectsCount: talent.hostedProjectsCount || 0,
+        patentCount: talent.patentCount || 0,
+        paperCount: talent.paperCount || 0,
+        standardsCount: talent.standardsCount || 0,
+        evaluationScore: talent.evaluationScore || null
       }))
     }
 
@@ -1516,60 +1336,6 @@ const loadModalTalents = async () => {
   } finally {
     searchModalState.loading = false
   }
-}
-
-const calculateCompanyTenure = (joinDate) => {
-  if (!joinDate) return 0
-  const join = dayjs(joinDate)
-  const now = dayjs()
-  return now.diff(join, 'year')
-}
-
-const calculateAge = (birthDate) => {
-  if (!birthDate) return Math.floor(Math.random() * 25) + 25
-  const birth = dayjs(birthDate)
-  const now = dayjs()
-  return now.diff(birth, 'year')
-}
-
-const getRandomPerformance = () => {
-  const performances = ['A', 'B', 'C', 'D']
-  const weights = [0.2, 0.5, 0.2, 0.1]
-  const rand = Math.random()
-  let cumulativeWeight = 0
-
-  for (let i = 0; i < performances.length; i++) {
-    cumulativeWeight += weights[i]
-    if (rand <= cumulativeWeight) {
-      return performances[i]
-    }
-  }
-  return 'B'
-}
-
-const generateProfileTags = (talent) => {
-  const tags = []
-
-  // 基于绩效添加标签
-  if (talent.performance === 'A' || talent.performance === 'B') {
-    if (talent.companyTenure < 3 && talent.age < 35) {
-      tags.push('高潜人才')
-    } else if (talent.companyTenure >= 5) {
-      tags.push('关键人才')
-    }
-  }
-
-  // 基于级别添加标签
-  if (talent.level === 'expert') {
-    tags.push('技术专家')
-  }
-
-  // 基于技能添加标签
-  if (talent.skills && talent.skills.length >= 5) {
-    tags.push('多面手')
-  }
-
-  return tags
 }
 
 const handleModalSearch = () => {
@@ -1587,9 +1353,9 @@ const handleModalFilterChange = () => {
 
 const resetModalFilters = () => {
   searchModalState.filters = {
-    department: null,
+    company: null,
     education: null,
-    performance: null
+    talentLevel: null
   }
   searchModalState.searchKeyword = ''
   searchModalState.currentPage = 1
@@ -1692,7 +1458,7 @@ const fetchAnalysisData = async () => {
     analysisData.recommendations = [
       {
         title: '最适合晋升人选',
-        content: '综合绩效表现优异，具备较强的领导潜力和专业技能',
+        content: '综合评估分数最高，具备较强的专业能力和成果产出',
         talentIds: comparisonData.value
             .sort((a, b) => calculateTotalScore(b) - calculateTotalScore(a))
             .slice(0, 1)
@@ -1701,18 +1467,18 @@ const fetchAnalysisData = async () => {
       },
       {
         title: '最佳项目负责人',
-        content: '项目管理经验丰富，沟通协调能力强，适合负责跨部门项目',
+        content: '项目管理经验丰富，专利和论文成果突出，适合负责重点项目',
         talentIds: comparisonData.value
-            .filter(t => (t.projects && t.projects.length >= 2) || t.leadership >= 4)
+            .filter(t => (t.hostedProjectsCount >= 3 || t.patentCount >= 5))
             .slice(0, 2)
             .map(t => t.id),
         color: '#0088cc'
       },
       {
         title: '重点培养对象',
-        content: '发展潜力大，学习能力强，建议纳入重点培养计划',
+        content: '青年人才，发展潜力大，建议纳入重点培养计划',
         talentIds: comparisonData.value
-            .filter(t => t.isHighPotential && t.age < 35)
+            .filter(t => t.talentType === 'young_talent' || (t.education === 'master' || t.education === 'doctor'))
             .slice(0, 2)
             .map(t => t.id),
         color: '#66a3ff'
@@ -1743,24 +1509,24 @@ const initRadarChart = () => {
   radarChart = echarts.init(chartDom)
 
   const indicator = [
-    { name: '专业技能', max: 5 },
-    { name: '领导能力', max: 5 },
-    { name: '沟通能力', max: 5 },
-    { name: '项目经验', max: 5 },
-    { name: '学习能力', max: 5 },
-    { name: '团队协作', max: 5 }
+    { name: '专业能力', max: 100 },
+    { name: '创新能力', max: 100 },
+    { name: '项目经验', max: 100 },
+    { name: '学术成果', max: 100 },
+    { name: '发展潜力', max: 100 },
+    { name: '团队协作', max: 100 }
   ]
 
   const seriesData = comparisonData.value.map((talent, index) => ({
     name: talent.name,
     value: [
-      talent.skills?.length / 2 || Math.random() * 5,
-      talent.leadership || Math.random() * 5,
-      talent.communication || Math.random() * 5,
-      (talent.projects?.length || 0) / 2, // 项目经验评分
-      4, // 学习能力 - 模拟数据
-      4.2 // 团队协作 - 模拟数据
-    ],
+      talent.evaluationScore || Math.random() * 80 + 20,
+      (talent.patentCount || 0) * 10 + (talent.standardsCount || 0) * 5,
+      (talent.hostedProjectsCount || 0) * 15 + (talent.participatedProjectsCount || 0) * 5,
+      (talent.paperCount || 0) * 8 + (talent.standardsCount || 0) * 4,
+      70, // 发展潜力 - 模拟数据
+      75  // 团队协作 - 模拟数据
+    ].map(v => Math.min(v, 100)),
     itemStyle: {
       color: talentColors[index % talentColors.length].primary
     }
@@ -1848,7 +1614,7 @@ const handleChartResize = () => {
 onMounted(async () => {
   await fetchAnalysisData()
 
-  // 如果对比列表为空，尝试从路由参数获取（备用方案）
+  // 如果对比列表为空，尝试从路由参数获取
   if (comparisonData.value.length === 0 && route.query.talentIds) {
     const talentIds = route.query.talentIds.split(',')
     // 可以在这里调用API获取人才数据并添加到对比
@@ -1895,51 +1661,6 @@ watch(comparisonData, (newVal) => {
 </script>
 
 <style lang="less" scoped>
-/* 项目经验和培训经历相关样式 */
-.project-cell {
-  text-align: left;
-  .project-name {
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 4px;
-  }
-  .project-role {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 2px;
-  }
-  .project-duration {
-    font-size: 12px;
-    color: #999;
-  }
-}
-
-.project-outcome {
-  text-align: left;
-  font-size: 13px;
-  color: #666;
-  line-height: 1.4;
-}
-
-.training-cell {
-  text-align: left;
-  .training-name {
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 4px;
-  }
-  .training-date {
-    font-size: 12px;
-    color: #666;
-    margin-bottom: 2px;
-  }
-  .training-certificate {
-    font-size: 12px;
-    color: #0066b3;
-  }
-}
-
-/* 其余样式保持不变（和原文件相同） */
 .talent-comparison-container {
   padding: 0;
   background: #f8fafc;
@@ -2439,29 +2160,47 @@ watch(comparisonData, (newVal) => {
       }
     }
 
-    .tags-cell {
+    .honor-cell {
       display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
+      align-items: center;
       justify-content: center;
+      gap: 4px;
+
+      .honor-text {
+        font-size: 13px;
+        color: #333;
+      }
+
+      .more-honors {
+        font-size: 12px;
+        color: #999;
+      }
+
+      .no-data {
+        color: #999;
+        font-size: 13px;
+      }
     }
 
-    .performance-value {
-      margin-left: 8px;
-      font-weight: 500;
-      min-width: 30px;
-      display: inline-block;
-      color: #333;
+    .support-plan-cell {
+      .plan-text {
+        font-size: 13px;
+        color: #333;
+      }
     }
 
-    .potential-tag {
-      display: inline-block;
-      margin-left: 8px;
-      font-size: 11px;
-      color: #0066b3;
-      background: rgba(0, 102, 179, 0.1);
-      padding: 1px 6px;
-      border-radius: 2px;
+    .score-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      .score-value {
+        font-weight: 500;
+        min-width: 30px;
+        display: inline-block;
+        color: #333;
+      }
     }
 
     tr:hover {
@@ -2476,13 +2215,13 @@ watch(comparisonData, (newVal) => {
   }
 }
 
-.yn-grid-rate {
-  :deep(.ant-rate-star) {
-    color: #e6f0ff;
+.yn-grid-progress {
+  :deep(.ant-progress-inner) {
+    background-color: #e6f0ff;
+  }
 
-    &.ant-rate-star-full {
-      color: #0066b3;
-    }
+  :deep(.ant-progress-bg) {
+    background: #0066b3;
   }
 }
 

@@ -71,6 +71,12 @@ const router = createRouter({
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
         },
         {
+          path: 'compare',
+          name: 'TalentCompare',
+          component: () => import('../views/talentsearch/TalentCompare.vue'),
+          meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
+        },
+        {
           path: ':id',
           component: () => import('@/views/talent/TalentLayout.vue'),
           meta: { title: '人才详情' },
@@ -100,7 +106,7 @@ const router = createRouter({
               path: 'analysis',
               name: 'TalentAnalysis',
               component: () => import('@/views/talent/TalentAnalysis.vue'),
-              meta: { title: '能力分析', keepAlive: true }
+              meta: { title: '考核预评', keepAlive: true }
             },
             {
               path: 'knowledge',
@@ -125,21 +131,6 @@ const router = createRouter({
       ]
     },
 
-    {
-      path: '/search',
-      name: 'search',
-      component: AppLayout,
-      children: [
-        {
-          path: '',
-          name: 'TalentSearchComp',
-          component: () => import('../views/talentsearch/index.vue'),
-          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
-        },
-        // 人才详情页已迁移到子路由结构
-        // 保留此注释作为历史记录
-      ]
-    },
     {
       path: '/database',
       name: 'database',
@@ -169,6 +160,19 @@ const router = createRouter({
           name: 'DashboardComp',
           component: () => import('../views/DashboardView.vue'),
           meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
+    {
+      path: '/aisearch',
+      name: 'AISearch',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'TalentChatSearch',
+          component: () => import('../views/aisearch/TalentChatSearchView.vue'),
+          meta: { title: '人才AI搜索', requiresAuth: true , requiresAdmin: true}
         }
       ]
     },
