@@ -32,7 +32,6 @@ MCP_SERVERS = {
     #     "args": ["-y", "@antv/mcp-server-chart"],
     #     "transport": "stdio"
     # },
-    # 更多用法参考：https://xerrors.github.io/Yuxi-Know/latest/advanced/agents-config.html#内置工具与-mcp-集成
 }
 
 
