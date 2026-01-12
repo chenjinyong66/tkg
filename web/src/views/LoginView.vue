@@ -167,29 +167,6 @@
                   </a-button>
                 </a-form-item>
 
-                <!-- 第三方登录选项 -->
-                <div class="third-party-login">
-                  <div class="divider">
-                    <span>其他登录方式</span>
-                  </div>
-                  <div class="login-icons">
-                    <a-tooltip title="微信登录">
-                      <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                        <template #icon><wechat-outlined /></template>
-                      </a-button>
-                    </a-tooltip>
-                    <a-tooltip title="企业微信登录">
-                      <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                        <template #icon><qrcode-outlined /></template>
-                      </a-button>
-                    </a-tooltip>
-                    <a-tooltip title="飞书登录">
-                      <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                        <template #icon><thunderbolt-outlined /></template>
-                      </a-button>
-                    </a-tooltip>
-                  </div>
-                </div>
               </a-form>
             </div>
 
@@ -232,7 +209,7 @@ const brandName = computed(() => {
 const brandSubtitle = computed(() => {
   const rawSubtitle = infoStore.branding?.subtitle ?? '';
   const trimmed = rawSubtitle.trim();
-  return trimmed || '大模型驱动的知识库管理工具';
+  return trimmed || '人才智能评估于规划';
 });
 const brandDescription = computed(() => {
   const rawDescription = infoStore.branding?.description ?? '';
